@@ -536,9 +536,62 @@ footer ul a:hover { color: var(--teal); }
 }
 .message-success { background: rgba(0,168,168,0.1); border: 1px solid rgba(0,168,168,0.3); color: var(--teal-dark); }
 
+/* ── HAMBURGER ── */
+.nav-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  z-index: 110;
+}
+
+.nav-toggle span {
+  display: block;
+  width: 24px;
+  height: 2px;
+  background: var(--white);
+  border-radius: 2px;
+  transition: all 0.3s;
+}
+
 /* ── RESPONSIVE ── */
 @media (max-width: 768px) {
-  .navbar-nav { display: none; }
+  .navbar { position: relative; }
+
+  .nav-toggle { display: flex; }
+
+  .navbar-nav {
+    display: none;
+    flex-direction: column;
+    position: absolute;
+    top: 88px;
+    left: 0;
+    right: 0;
+    background: var(--navy-dark);
+    padding: 12px 16px 20px;
+    gap: 4px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+    z-index: 99;
+  }
+
+  .navbar.nav-open .navbar-nav { display: flex; }
+
+  .navbar-nav a {
+    display: block;
+    padding: 12px 16px;
+    font-size: 15px;
+    border-radius: 8px;
+  }
+
+  .btn-login {
+    margin-top: 8px;
+    text-align: center;
+  }
+
   .stats-bar { flex-wrap: wrap; gap: 24px; }
   .stat-item { border-right: none; padding: 0 20px; }
   .footer-grid { grid-template-columns: 1fr; gap: 28px; }

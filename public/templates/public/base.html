@@ -15,6 +15,9 @@
     <a href="{% url 'home' %}" class="navbar-brand">
       <img src="{% static 'images/logo.svg' %}" alt="Wolf Backflow">
     </a>
+    <button class="nav-toggle" onclick="document.querySelector('.navbar').classList.toggle('nav-open')" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
     <ul class="navbar-nav">
       <li><a href="{% url 'home' %}" {% if request.resolver_match.url_name == 'home' %}class="active"{% endif %}>Home</a></li>
       <li><a href="{% url 'services' %}" {% if request.resolver_match.url_name == 'services' %}class="active"{% endif %}>Services</a></li>
