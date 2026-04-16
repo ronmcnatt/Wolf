@@ -1,0 +1,96 @@
+{% extends "public/base.html" %}
+
+{% block title %}Coverage Area — Wolf Backflow | Northeast Florida{% endblock %}
+{% block description %}Wolf Backflow serves Duval, St. Johns, Clay, Nassau, and Putnam counties across Northeast Florida.{% endblock %}
+
+{% block content %}
+
+<div class="page-hero">
+  <div class="section-label">Where We Work</div>
+  <h1>Coverage Area</h1>
+  <p>Serving Northeast Florida and growing — new counties being added throughout 2026.</p>
+</div>
+
+<section class="section section-navy">
+  <div class="section-label">Service Area</div>
+  <h2 class="section-title">Northeast Florida Coverage</h2>
+  <p class="section-subtitle">We're actively expanding to bring certified backflow testing to more communities across the region.</p>
+
+  <div class="coverage-grid">
+    <div class="coverage-county">
+      <div class="expanding-badge"><span class="pulse"></span> Primary</div>
+      <h4>Duval County</h4>
+      <ul>
+        <li>Jacksonville</li>
+        <li>Jacksonville Beach</li>
+        <li>Neptune Beach</li>
+        <li>Atlantic Beach</li>
+        <li>Baldwin</li>
+      </ul>
+    </div>
+
+    <div class="coverage-county">
+      <div class="expanding-badge"><span class="pulse"></span> Active</div>
+      <h4>St. Johns County</h4>
+      <ul>
+        <li>St. Augustine</li>
+        <li>St. Augustine Beach</li>
+        <li>Ponte Vedra Beach</li>
+        <li>St. Johns</li>
+        <li>Nocatee</li>
+      </ul>
+    </div>
+
+    <div class="coverage-county">
+      <div class="expanding-badge"><span class="pulse"></span> Active</div>
+      <h4>Clay County</h4>
+      <ul>
+        <li>Orange Park</li>
+        <li>Fleming Island</li>
+        <li>Green Cove Springs</li>
+        <li>Middleburg</li>
+        <li>Oakleaf</li>
+      </ul>
+    </div>
+
+    <div class="coverage-county">
+      <div class="expanding-badge"><span class="pulse"></span> Coming Soon</div>
+      <h4>Nassau County</h4>
+      <ul>
+        <li>Fernandina Beach</li>
+        <li>Amelia Island</li>
+        <li>Yulee</li>
+        <li>Callahan</li>
+      </ul>
+    </div>
+
+    <div class="coverage-county">
+      <div class="expanding-badge"><span class="pulse"></span> Coming Soon</div>
+      <h4>Putnam County</h4>
+      <ul>
+        <li>Palatka</li>
+        <li>Interlachen</li>
+        <li>Crescent City</li>
+      </ul>
+    </div>
+
+    <div class="coverage-county">
+      <div class="expanding-badge"><span class="pulse"></span> Planned</div>
+      <h4>Flagler County</h4>
+      <ul>
+        <li>Palm Coast</li>
+        <li>Bunnell</li>
+        <li>Flagler Beach</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-label">Not Sure?</div>
+  <h2 class="section-title">Don't See Your Area?</h2>
+  <p class="section-subtitle">We're expanding rapidly. Contact us — we may already serve your area or can schedule service soon.</p>
+  <a href="{% url 'contact' %}" class="btn btn-primary">Ask About Your Location</a>
+</section>
+
+{% endblock %}

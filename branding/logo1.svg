@@ -1,0 +1,30 @@
+<svg width="500" height="210" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 210">
+  <rect width="500" height="210" fill="white"/>
+
+  <!-- WOLF bold serif wordmark -->
+  <text x="250" y="115"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="84"
+        font-weight="bold"
+        fill="#1B3A5C"
+        text-anchor="middle"
+        letter-spacing="18">WOLF</text>
+
+  <!-- Sweeping reverse arrow: right to left = backflow direction -->
+  <path d="M 395,140 C 320,165 180,165 105,140"
+        stroke="#00A8A8" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  <!-- Arrowhead pointing left -->
+  <line x1="105" y1="140" x2="122" y2="130" stroke="#00A8A8" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="105" y1="140" x2="122" y2="150" stroke="#00A8A8" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- Origin dot (flow starts here) -->
+  <circle cx="395" cy="140" r="4.5" fill="#00A8A8"/>
+
+  <!-- Tagline -->
+  <text x="250" y="193"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="12"
+        fill="#1B3A5C"
+        text-anchor="middle"
+        letter-spacing="4.5"
+        opacity="0.7">BACKFLOW TESTING SERVICES</text>
+</svg>

@@ -1,0 +1,130 @@
+{% extends "public/base.html" %}
+
+{% block title %}Wolf Backflow — Backflow Testing Services | Northeast Florida{% endblock %}
+
+{% block content %}
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-company-name">Backflow Testing Services</div>
+    <div class="hero-badge">
+      <span class="pulse"></span> Now Expanding Coverage Across Northeast Florida
+    </div>
+    <h1>Protecting Your Water Supply with <span>Certified Backflow Testing</span></h1>
+    <p>Wolf Backflow provides state-certified backflow testing, inspection, and reporting services for residential, commercial, and municipal customers across Northeast Florida.</p>
+    <div class="hero-actions">
+      <a href="{% url 'contact' %}" class="btn btn-primary">Schedule a Test</a>
+      <a href="{% url 'services' %}" class="btn btn-outline">Our Services</a>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats-bar">
+  <div class="stat-item">
+    <div class="stat-number">5<span>+</span></div>
+    <div class="stat-label">Counties Served</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-number">500<span>+</span></div>
+    <div class="stat-label">Tests Completed</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-number">100<span>%</span></div>
+    <div class="stat-label">Certified Technicians</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-number">1<span>-Day</span></div>
+    <div class="stat-label">Report Turnaround</div>
+  </div>
+</div>
+
+<!-- SERVICES OVERVIEW -->
+<section class="section">
+  <div class="section-label">What We Do</div>
+  <h2 class="section-title">Comprehensive Backflow Services</h2>
+  <p class="section-subtitle">From annual testing to digital compliance reporting, we handle every step of backflow prevention for your property.</p>
+
+  <div class="cards-grid">
+    <div class="card">
+      <div class="card-icon">🔧</div>
+      <h3>Backflow Testing &amp; Certification</h3>
+      <p>State-certified annual testing with same-day digital reports submitted directly to your water utility.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔍</div>
+      <h3>Inspection &amp; Assessment</h3>
+      <p>Thorough inspection of backflow prevention devices to ensure they meet current code requirements.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">📋</div>
+      <h3>Compliance Reporting</h3>
+      <p>Digital documentation and direct utility reporting so you always stay compliant without the paperwork headache.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🛠️</div>
+      <h3>Repair &amp; Installation</h3>
+      <p>Repair or replacement of failed backflow prevention assemblies, with installation of new devices when required.</p>
+    </div>
+  </div>
+</section>
+
+<!-- COVERAGE EXPANSION -->
+<section class="section section-navy">
+  <div class="section-label">Service Area</div>
+  <h2 class="section-title">Expanding Across Northeast Florida</h2>
+  <p class="section-subtitle">We're growing our footprint to serve more communities — from Jacksonville to St. Augustine and beyond.</p>
+
+  <div class="coverage-grid">
+    <div class="coverage-county">
+      <div class="expanding-badge"><span class="pulse"></span> Primary</div>
+      <h4>Duval County</h4>
+      <ul>
+        <li>Jacksonville</li>
+        <li>Jacksonville Beach</li>
+        <li>Neptune Beach</li>
+        <li>Atlantic Beach</li>
+      </ul>
+    </div>
+    <div class="coverage-county">
+      <div class="expanding-badge"><span class="pulse"></span> Expanding</div>
+      <h4>St. Johns County</h4>
+      <ul>
+        <li>St. Augustine</li>
+        <li>Ponte Vedra Beach</li>
+        <li>St. Johns</li>
+        <li>Nocatee</li>
+      </ul>
+    </div>
+    <div class="coverage-county">
+      <div class="expanding-badge"><span class="pulse"></span> Expanding</div>
+      <h4>Clay County</h4>
+      <ul>
+        <li>Orange Park</li>
+        <li>Fleming Island</li>
+        <li>Green Cove Springs</li>
+        <li>Middleburg</li>
+      </ul>
+    </div>
+    <div class="coverage-county">
+      <div class="expanding-badge"><span class="pulse"></span> Coming Soon</div>
+      <h4>Nassau &amp; Putnam</h4>
+      <ul>
+        <li>Fernandina Beach</li>
+        <li>Amelia Island</li>
+        <li>Yulee</li>
+        <li>Palatka</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <h2>Ready to Schedule Your Backflow Test?</h2>
+  <p>Most utilities require annual testing. We make it fast, certified, and hassle-free.</p>
+  <a href="{% url 'contact' %}" class="btn btn-white">Get in Touch Today</a>
+</section>
+
+{% endblock %}

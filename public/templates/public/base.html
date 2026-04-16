@@ -1,0 +1,68 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Wolf Backflow — Backflow Testing Services{% endblock %}</title>
+  <meta name="description" content="{% block description %}Wolf Backflow provides certified backflow testing and prevention services across Northeast Florida.{% endblock %}">
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+  <link rel="icon" href="{% static 'images/logo.svg' %}" type="image/svg+xml">
+</head>
+<body>
+
+  <nav class="navbar">
+    <a href="{% url 'home' %}" class="navbar-brand">
+      <img src="{% static 'images/logo.svg' %}" alt="Wolf Backflow">
+    </a>
+    <ul class="navbar-nav">
+      <li><a href="{% url 'home' %}" {% if request.resolver_match.url_name == 'home' %}class="active"{% endif %}>Home</a></li>
+      <li><a href="{% url 'services' %}" {% if request.resolver_match.url_name == 'services' %}class="active"{% endif %}>Services</a></li>
+      <li><a href="{% url 'coverage' %}" {% if request.resolver_match.url_name == 'coverage' %}class="active"{% endif %}>Coverage</a></li>
+      <li><a href="{% url 'contact' %}" {% if request.resolver_match.url_name == 'contact' %}class="active"{% endif %}>Contact</a></li>
+      <li><a href="/tech/login/" class="btn-login">Technician Login</a></li>
+    </ul>
+  </nav>
+
+  {% if messages %}
+  <div class="messages">
+    {% for message in messages %}
+    <div class="message message-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% block content %}{% endblock %}
+
+  <footer>
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <img src="{% static 'images/logo.svg' %}" alt="Wolf Backflow">
+        <p>Certified backflow testing and prevention services protecting Northeast Florida's water supply.</p>
+      </div>
+      <div>
+        <h4>Quick Links</h4>
+        <ul>
+          <li><a href="{% url 'home' %}">Home</a></li>
+          <li><a href="{% url 'services' %}">Services</a></li>
+          <li><a href="{% url 'coverage' %}">Coverage Area</a></li>
+          <li><a href="{% url 'contact' %}">Contact Us</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Contact</h4>
+        <ul>
+          <li><a href="tel:+19045550100">(904) 555-0100</a></li>
+          <li><a href="mailto:info@wolfbackflow.com">info@wolfbackflow.com</a></li>
+          <li>Northeast Florida</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>&copy; 2026 Wolf Backflow. All rights reserved.</span>
+      <span>Licensed &amp; Certified Backflow Prevention Specialists</span>
+    </div>
+  </footer>
+
+</body>
+</html>

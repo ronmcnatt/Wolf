@@ -1,0 +1,289 @@
+{% extends "technician/base.html" %}
+
+{% block title %}{{ job.customer }} — Wolf Backflow{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="tech-page">
+
+  <a href="{% url 'tech_dashboard' %}" class="back-link">← Back to Schedule</a>
+
+  {% if submitted %}
+  <div class="success-banner">
+    <div class="icon">✅</div>
+    <div>
+      <h4>Test Results Submitted</h4>
+      <p>Results saved successfully. Utility API submission will be processed once approved.</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="tech-page-header">
+    <div>
+      <h1>{{ job.customer }}</h1>
+      <p>{{ job.time }} &nbsp;·&nbsp; {{ job.address }}</p>
+    </div>
+    <span class="badge badge-{{ job.status }}" style="font-size:13px; padding:8px 16px;">
+      {% if job.status == 'completed' %}✓ Completed
+      {% elif job.status == 'in_progress' %}● In Progress
+      {% else %}○ Pending{% endif %}
+    </span>
+  </div>
+
+  <!-- TOP GRID: Info left, Maps right -->
+  <div class="job-detail-grid">
+
+    <!-- LEFT: Job & Device Info -->
+    <div style="display:flex; flex-direction:column; gap:16px;">
+
+      <div class="card">
+        <h3>Customer &amp; Site</h3>
+        <div class="info-row">
+          <span class="label">Contact</span>
+          <span class="value">{{ job.contact }}</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Phone</span>
+          <span class="value"><a href="tel:{{ job.phone }}" style="color:var(--teal)">{{ job.phone }}</a></span>
+        </div>
+        <div class="info-row">
+          <span class="label">Address</span>
+          <span class="value">{{ job.address }}</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Scheduled</span>
+          <span class="value">{{ job.time }}</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Device Information</h3>
+        <div class="info-row">
+          <span class="label">Device Type</span>
+          <span class="value"><span class="badge badge-device">{{ job.device_type }}</span></span>
+        </div>
+        <div class="info-row">
+          <span class="label">Size</span>
+          <span class="value">{{ job.device_size }}</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Manufacturer</span>
+          <span class="value">{{ job.device_make }}</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Model</span>
+          <span class="value">{{ job.device_model }}</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Serial #</span>
+          <span class="value">{{ job.serial }}</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Location Notes</span>
+          <span class="value" style="text-align:right; max-width:220px;">{{ job.device_notes }}</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: Maps -->
+    <div class="card">
+      <h3>Site Maps</h3>
+      <div class="maps-stack">
+        <div class="map-block">
+          <h4>Property Location</h4>
+          <div class="map-container" id="property-map"></div>
+        </div>
+        <div class="map-block">
+          <h4>Backflow Device Location on Property</h4>
+          <div class="map-container" id="device-map"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- TEST FORM -->
+  <form method="POST" action="{% url 'tech_job_detail' job.id %}">
+    {% csrf_token %}
+    <div class="test-form-card">
+      <h3>Backflow Test Entry</h3>
+
+      <!-- Device Identity -->
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Test Date</label>
+          <input type="date" name="test_date" value="{% now 'Y-m-d' %}" required>
+        </div>
+        <div class="form-group">
+          <label>Test Time</label>
+          <input type="time" name="test_time" required>
+        </div>
+        <div class="form-group">
+          <label>Device Type</label>
+          <select name="device_type">
+            <option value="RPZ" {% if job.device_type == 'RPZ' %}selected{% endif %}>RPZ — Reduced Pressure Zone</option>
+            <option value="DCVA" {% if job.device_type == 'DCVA' %}selected{% endif %}>DCVA — Double Check Valve</option>
+            <option value="PVB" {% if job.device_type == 'PVB' %}selected{% endif %}>PVB — Pressure Vacuum Breaker</option>
+            <option value="SVB">SVB — Spill-Resistant Vacuum Breaker</option>
+            <option value="RPDA">RPDA — Reduced Pressure Detector</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Device Size</label>
+          <select name="device_size">
+            <option {% if job.device_size == '1/2"' %}selected{% endif %}>1/2"</option>
+            <option {% if job.device_size == '3/4"' %}selected{% endif %}>3/4"</option>
+            <option {% if job.device_size == '1"' %}selected{% endif %}>1"</option>
+            <option {% if job.device_size == '1.5"' %}selected{% endif %}>1.5"</option>
+            <option {% if job.device_size == '2"' %}selected{% endif %}>2"</option>
+            <option>3"</option>
+            <option>4"</option>
+            <option>6"</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Manufacturer</label>
+          <input type="text" name="manufacturer" value="{{ job.device_make }}" required>
+        </div>
+        <div class="form-group">
+          <label>Model</label>
+          <input type="text" name="model" value="{{ job.device_model }}" required>
+        </div>
+        <div class="form-group">
+          <label>Serial Number</label>
+          <input type="text" name="serial" value="{{ job.serial }}" required>
+        </div>
+        <div class="form-group">
+          <label>Installation Year</label>
+          <input type="number" name="install_year" placeholder="e.g. 2019" min="1990" max="2030">
+        </div>
+      </div>
+
+      <!-- Test Readings -->
+      <div class="readings-section">
+        <h4>Test Readings</h4>
+
+        <div class="reading-row">
+          <div class="reading-label">Check Valve 1</div>
+          <div class="radio-group">
+            <label><input type="radio" name="cv1_result" value="closed"> Closed</label>
+            <label><input type="radio" name="cv1_result" value="leaked"> Leaked</label>
+            <label><input type="radio" name="cv1_result" value="opened"> Opened at</label>
+          </div>
+          <div class="psi-input">
+            <input type="number" name="cv1_psi" placeholder="0.0" step="0.1" min="0">
+            <span>PSI</span>
+          </div>
+          <div></div>
+        </div>
+
+        <div class="reading-row">
+          <div class="reading-label">Check Valve 2</div>
+          <div class="radio-group">
+            <label><input type="radio" name="cv2_result" value="closed"> Closed</label>
+            <label><input type="radio" name="cv2_result" value="leaked"> Leaked</label>
+            <label><input type="radio" name="cv2_result" value="opened"> Opened at</label>
+          </div>
+          <div class="psi-input">
+            <input type="number" name="cv2_psi" placeholder="0.0" step="0.1" min="0">
+            <span>PSI</span>
+          </div>
+          <div></div>
+        </div>
+
+        <div class="reading-row">
+          <div class="reading-label">Relief Valve</div>
+          <div class="radio-group">
+            <label><input type="radio" name="rv_result" value="opened_ok"> Opened (OK)</label>
+            <label><input type="radio" name="rv_result" value="did_not_open"> Did Not Open</label>
+            <label><input type="radio" name="rv_result" value="leaked"> Leaked</label>
+          </div>
+          <div class="psi-input">
+            <input type="number" name="rv_psi" placeholder="0.0" step="0.1" min="0">
+            <span>PSI</span>
+          </div>
+          <div></div>
+        </div>
+
+        <div class="reading-row">
+          <div class="reading-label">Line Pressure</div>
+          <div></div>
+          <div class="psi-input">
+            <input type="number" name="line_psi" placeholder="0.0" step="0.1" min="0">
+            <span>PSI</span>
+          </div>
+          <div></div>
+        </div>
+
+      </div>
+
+      <!-- Pass / Fail -->
+      <div class="result-row">
+        <label>Overall Result</label>
+        <div class="result-options">
+          <label class="result-option pass-opt">
+            <input type="radio" name="overall_result" value="pass"> ✓ &nbsp;PASS
+          </label>
+          <label class="result-option fail-opt">
+            <input type="radio" name="overall_result" value="fail"> ✗ &nbsp;FAIL
+          </label>
+        </div>
+      </div>
+
+      <!-- Notes & Submit -->
+      <div class="form-grid-3">
+        <div class="form-group span-3">
+          <label>Technician Notes</label>
+          <textarea name="notes" placeholder="Repairs made, observations, access issues, etc."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Technician Initials</label>
+          <input type="text" name="initials" placeholder="e.g. JD" maxlength="4" style="text-transform:uppercase;">
+        </div>
+        <div class="form-group" style="justify-content:flex-end; padding-top:20px;">
+          <button type="submit" class="btn btn-success" style="justify-content:center;">
+            ✓ &nbsp;Submit Test Results
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </form>
+
+</div>
+
+<script>
+  // Property location map
+  const propMap = L.map('property-map').setView([{{ job.lat }}, {{ job.lng }}], 17);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors', maxZoom: 20
+  }).addTo(propMap);
+  L.marker([{{ job.lat }}, {{ job.lng }}])
+    .addTo(propMap)
+    .bindPopup('<strong>{{ job.customer }}</strong><br>{{ job.address }}')
+    .openPopup();
+
+  // Device location map (zoomed in tighter)
+  const devMap = L.map('device-map').setView([{{ job.device_lat }}, {{ job.device_lng }}], 19);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors', maxZoom: 20
+  }).addTo(devMap);
+
+  const devIcon = L.divIcon({
+    className: '',
+    html: '<div style="background:#00A8A8;color:white;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.3)">🔧 Backflow Device</div>',
+    iconAnchor: [60, 24]
+  });
+
+  L.marker([{{ job.device_lat }}, {{ job.device_lng }}], { icon: devIcon })
+    .addTo(devMap)
+    .bindPopup('<strong>Device Location</strong><br>{{ job.device_notes }}')
+    .openPopup();
+</script>
+
+{% endblock %}

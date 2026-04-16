@@ -1,0 +1,31 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Technician Portal — Wolf Backflow{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/tech.css' %}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+  <nav class="tech-nav">
+    <a href="{% url 'tech_dashboard' %}" class="tech-nav-brand">
+      <img src="{% static 'images/logo.svg' %}" alt="Wolf Backflow">
+      <div>
+        <div class="tech-nav-title">WOLF BACKFLOW</div>
+        <div class="tech-nav-subtitle">Technician Portal</div>
+      </div>
+    </a>
+    <div class="tech-nav-right">
+      <span>{{ tech_name }}</span>
+      <a href="{% url 'tech_dashboard' %}">Schedule</a>
+      <a href="{% url 'tech_logout' %}" class="logout-btn">Log Out</a>
+    </div>
+  </nav>
+
+  {% block content %}{% endblock %}
+
+</body>
+</html>

@@ -1,0 +1,62 @@
+{% extends "public/base.html" %}
+
+{% block title %}Services — Wolf Backflow{% endblock %}
+{% block description %}Certified backflow testing, inspection, repair, and compliance reporting services across Northeast Florida.{% endblock %}
+
+{% block content %}
+
+<div class="page-hero">
+  <div class="section-label">What We Offer</div>
+  <h1>Our Services</h1>
+  <p>Full-service backflow testing and prevention for residential, commercial, and municipal customers.</p>
+</div>
+
+<section class="section">
+  <div class="cards-grid">
+
+    <div class="card">
+      <div class="card-icon">🔧</div>
+      <h3>Annual Backflow Testing</h3>
+      <p>State-certified annual testing required by most Florida water utilities. Our technicians test your assembly on-site and submit the results directly to your utility — no extra steps needed on your end.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">🔍</div>
+      <h3>Device Inspection</h3>
+      <p>Thorough inspection of all backflow prevention assemblies including reduced pressure zone (RPZ), double check valve (DCV), and pressure vacuum breaker (PVB) devices.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">📋</div>
+      <h3>Digital Compliance Reporting</h3>
+      <p>All test results are documented digitally and transmitted directly to the appropriate water utility. You receive a copy within 24 hours of testing for your records.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">🛠️</div>
+      <h3>Repair &amp; Replacement</h3>
+      <p>When a device fails testing, we can often repair it on the spot. If replacement is necessary, we source and install an approved assembly to get you back in compliance quickly.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">🏢</div>
+      <h3>Commercial Programs</h3>
+      <p>Ongoing annual testing programs for commercial properties, HOAs, and property management companies. We handle scheduling reminders so nothing slips through the cracks.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">🔌</div>
+      <h3>Utility API Reporting</h3>
+      <p>Direct electronic submission of test results to utility company systems — eliminating paper forms and manual processing for faster compliance confirmation.</p>
+    </div>
+
+  </div>
+</section>
+
+<section class="cta-section">
+  <h2>Need a Backflow Test Scheduled?</h2>
+  <p>We serve residential, commercial, and HOA customers across Northeast Florida.</p>
+  <a href="{% url 'contact' %}" class="btn btn-white">Contact Us</a>
+</section>
+
+{% endblock %}

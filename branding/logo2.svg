@@ -1,0 +1,68 @@
+<svg width="560" height="178" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 178">
+  <rect width="560" height="178" fill="white"/>
+
+  <!-- === GEOMETRIC WOLF BADGE (left) === -->
+  <g transform="translate(8, 12)">
+    <!-- Main circular badge -->
+    <circle cx="75" cy="78" r="68" fill="#1B3A5C"/>
+
+    <!-- Left ear (outer) -->
+    <polygon points="28,6 10,36 50,38" fill="#1B3A5C"/>
+    <!-- Left ear (inner highlight) -->
+    <polygon points="28,14 18,34 46,36" fill="#243F63"/>
+
+    <!-- Right ear (outer) -->
+    <polygon points="122,6 140,36 100,38" fill="#1B3A5C"/>
+    <!-- Right ear (inner highlight) -->
+    <polygon points="122,14 132,34 104,36" fill="#243F63"/>
+
+    <!-- Left eye -->
+    <circle cx="50" cy="72" r="10" fill="#F4F6F8"/>
+    <circle cx="52" cy="73" r="6"  fill="#0D2238"/>
+    <circle cx="54" cy="71" r="2.5" fill="white"/>
+
+    <!-- Right eye -->
+    <circle cx="100" cy="72" r="10" fill="#F4F6F8"/>
+    <circle cx="102" cy="73" r="6"  fill="#0D2238"/>
+    <circle cx="104" cy="71" r="2.5" fill="white"/>
+
+    <!-- Nose -->
+    <path d="M 66,96 Q 75,90 84,96 Q 75,106 66,96 Z" fill="#00A8A8"/>
+
+    <!-- Backflow arrow on badge -->
+    <path d="M 114,124 C 98,136 52,136 36,124"
+          stroke="#00A8A8" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <line x1="36" y1="124" x2="50" y2="117" stroke="#00A8A8" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="36" y1="124" x2="50" y2="131" stroke="#00A8A8" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="114" cy="124" r="3" fill="#00A8A8"/>
+  </g>
+
+  <!-- === TEXT (right) === -->
+  <g transform="translate(168, 0)">
+    <!-- WOLF -->
+    <text x="0" y="80"
+          font-family="Georgia, 'Times New Roman', serif"
+          font-size="70"
+          font-weight="bold"
+          fill="#1B3A5C"
+          letter-spacing="8">WOLF</text>
+
+    <!-- Teal separator line -->
+    <line x1="0" y1="94" x2="355" y2="94" stroke="#00A8A8" stroke-width="2"/>
+
+    <!-- BACKFLOW -->
+    <text x="2" y="122"
+          font-family="Arial, Helvetica, sans-serif"
+          font-size="20"
+          fill="#00A8A8"
+          letter-spacing="10">BACKFLOW</text>
+
+    <!-- Tagline -->
+    <text x="3" y="152"
+          font-family="Arial, Helvetica, sans-serif"
+          font-size="11.5"
+          fill="#1B3A5C"
+          letter-spacing="3.5"
+          opacity="0.65">TESTING SERVICES</text>
+  </g>
+</svg>
