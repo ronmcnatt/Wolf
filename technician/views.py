@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from functools import wraps
+from .models import TestResult
 
 SAMPLE_JOBS = [
     {
@@ -165,11 +166,46 @@ def tech_job_detail(request, job_id):
     job = next((j for j in SAMPLE_JOBS if j['id'] == job_id), None)
     if not job:
         return redirect('tech_dashboard')
+
     submitted = False
     if request.method == 'POST':
+        p = request.POST
+        def psi(field):
+            try: return float(p.get(field)) if p.get(field) else None
+            except ValueError: return None
+        def year(field):
+            try: return int(p.get(field)) if p.get(field) else None
+            except ValueError: return None
+
+        TestResult.objects.create(
+            job_id=job_id,
+            customer=job['customer'],
+            address=job['address'],
+            device_type=p.get('device_type', job['device_type']),
+            device_size=p.get('device_size', job['device_size']),
+            manufacturer=p.get('manufacturer', job['device_make']),
+            model=p.get('model', job['device_model']),
+            serial=p.get('serial', job['serial']),
+            install_year=year('install_year'),
+            test_date=p.get('test_date'),
+            test_time=p.get('test_time'),
+            cv1_result=p.get('cv1_result', ''),
+            cv1_psi=psi('cv1_psi'),
+            cv2_result=p.get('cv2_result', ''),
+            cv2_psi=psi('cv2_psi'),
+            rv_result=p.get('rv_result', ''),
+            rv_psi=psi('rv_psi'),
+            line_psi=psi('line_psi'),
+            overall_result=p.get('overall_result', 'pass'),
+            notes=p.get('notes', ''),
+            technician_initials=p.get('initials', '').upper(),
+        )
         submitted = True
+
+    prior_results = TestResult.objects.filter(job_id=job_id)
     return render(request, 'technician/job_detail.html', {
         'job': job,
         'submitted': submitted,
+        'prior_results': prior_results,
         'tech_name': request.session.get('tech_name', 'Technician'),
     })

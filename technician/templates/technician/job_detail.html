@@ -107,6 +107,24 @@
 
   </div>
 
+  <!-- PRIOR RESULTS -->
+  {% if prior_results %}
+  <div class="card" style="margin-bottom:20px;">
+    <h3>Previous Test Results</h3>
+    {% for r in prior_results %}
+    <div class="info-row">
+      <span class="label">{{ r.test_date }} {{ r.test_time }}</span>
+      <span class="value">
+        <span class="badge {% if r.overall_result == 'pass' %}badge-completed{% else %}" style="background:#fee2e2;color:#dc2626;{% endif %}">
+          {% if r.overall_result == 'pass' %}✓ PASS{% else %}✗ FAIL{% endif %}
+        </span>
+        &nbsp; {{ r.technician_initials }} &nbsp;·&nbsp; {{ r.device_type }} {{ r.device_size }}
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   <!-- TEST FORM -->
   <form method="POST" action="{% url 'tech_job_detail' job.id %}">
     {% csrf_token %}

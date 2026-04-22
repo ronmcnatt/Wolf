@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -53,12 +54,14 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "wolf_backflow.wsgi.application"
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
-}
+_db = dj_database_url.config(
+    default=f'sqlite:///{BASE_DIR / "db.sqlite3"}',
+    conn_max_age=600,
+)
+if _db.get('ENGINE') == 'django.db.backends.postgresql':
+    _db.setdefault('OPTIONS', {})['sslmode'] = 'require'
+
+DATABASES = {'default': _db}
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
