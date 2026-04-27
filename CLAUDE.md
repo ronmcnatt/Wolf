@@ -35,11 +35,12 @@ python manage.py runserver
 
 ## POC Users
 
-| Role | Username | Password | Lands On |
-|------|----------|----------|----------|
-| Technician | `technician` | `tech123` | Daily schedule (today's assigned jobs) |
-| Operations | `operations` | `ops123` | Job management dashboard |
-| Manager | `manager` | `mgr123` | Job management dashboard |
+| Role       | Username     | Password   | Lands On                               |
+|------------|--------------|------------|----------------------------------------|
+| Technician | `technician` | `tech123`  | Daily schedule (today's assigned jobs) |
+| Operations | `operations` | `ops123`   | Job management dashboard               |
+| Manager    | `manager`    | `mgr123`   | Job management dashboard               |
+| Admin      | `admin`      | `admin123` | User management (all users + roles)    |
 
 Users and today's sample jobs are seeded automatically on deploy via `create_demo_users` management command.
 To re-seed locally: `python manage.py create_demo_users`
@@ -47,7 +48,7 @@ To re-seed locally: `python manage.py create_demo_users`
 ## Data Models
 
 ### UserProfile (technician/models.py)
-Links Django's built-in `User` to a role. Roles: `technician`, `operations`, `manager`.
+Links Django's built-in `User` to a role. Roles: `technician`, `operations`, `manager`, `admin`.
 
 ### Job (technician/models.py)
 Stores all job/site information. Fields cover:
@@ -74,6 +75,7 @@ Persists backflow test readings submitted by technicians. Fields cover:
 | Technician | Daily schedule, job detail, test submission form |
 | Operations | Job management dashboard, create/edit jobs, assign technicians |
 | Manager | Same as Operations (manager-specific views planned) |
+| Admin | User management — view all users, add new users, edit roles/passwords |
 
 Login redirects automatically based on role. Unauthorized role access redirects to login.
 

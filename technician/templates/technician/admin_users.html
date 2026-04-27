@@ -1,0 +1,71 @@
+{% extends "technician/base.html" %}
+{% load tech_extras %}
+
+{% block title %}User Management — Wolf Backflow{% endblock %}
+
+{% block content %}
+<div class="tech-page">
+
+  <div class="tech-page-header">
+    <div>
+      <h1>User Management</h1>
+      <p>All portal users and their assigned roles</p>
+    </div>
+    <a href="{% url 'admin_user_new' %}" class="btn btn-primary">+ Add User</a>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-card total">
+      <div class="num">{{ total }}</div>
+      <div class="lbl">Total Users</div>
+    </div>
+    {% for role, label in ROLES %}
+    <div class="stat-card">
+      <div class="num">{{ role_counts|get_item:role|default:0 }}</div>
+      <div class="lbl">{{ label }}s</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- USER TABLE -->
+  <div class="ops-table-wrap">
+    <table class="ops-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Username</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Date Joined</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td class="td-customer">
+            {{ u.get_full_name|default:"—" }}
+            {% if u == request.user %}<span style="font-size:11px;color:var(--teal);font-weight:600;"> (you)</span>{% endif %}
+          </td>
+          <td style="font-family:monospace; color:var(--navy);">{{ u.username }}</td>
+          <td style="color:var(--muted);">{{ u.email|default:"—" }}</td>
+          <td>
+            {% if u.profile %}
+            <span class="badge role-badge role-{{ u.profile.role }}">{{ u.profile.get_role_display }}</span>
+            {% else %}
+            <span style="color:var(--muted);">No profile</span>
+            {% endif %}
+          </td>
+          <td style="color:var(--muted);">{{ u.date_joined|date:"M j, Y" }}</td>
+          <td>
+            <a href="{% url 'admin_user_edit' u.id %}" class="btn btn-outline btn-sm">Edit</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+{% endblock %}

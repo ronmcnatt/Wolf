@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.models import User
 from django.utils import timezone
 from functools import wraps
@@ -24,6 +24,8 @@ def role_required(*roles):
 
 def _redirect_by_role(user):
     role = getattr(getattr(user, 'profile', None), 'role', '')
+    if role == 'admin':
+        return redirect('admin_users')
     if role in ('operations', 'manager'):
         return redirect('ops_dashboard')
     return redirect('tech_dashboard')
@@ -210,4 +212,70 @@ def ops_job_form(request, job_id=None):
         'technicians': technicians,
         'DEVICE_TYPES': Job.DEVICE_TYPES,
         'STATUS_CHOICES': Job.STATUS_CHOICES,
+    })
+
+
+# ── Admin views ───────────────────────────────────────────────────────────────
+
+@role_required('admin')
+def admin_users(request):
+    users = User.objects.select_related('profile').order_by('profile__role', 'first_name')
+    role_counts = {}
+    for role, label in UserProfile.ROLES:
+        role_counts[role] = users.filter(profile__role=role).count()
+    return render(request, 'technician/admin_users.html', {
+        'users': users,
+        'role_counts': role_counts,
+        'total': users.count(),
+        'ROLES': UserProfile.ROLES,
+    })
+
+
+@role_required('admin')
+def admin_user_form(request, user_id=None):
+    target = get_object_or_404(User, pk=user_id) if user_id else None
+    error = None
+
+    if request.method == 'POST':
+        p = request.POST
+        username = p.get('username', '').strip()
+        first_name = p.get('first_name', '').strip()
+        last_name = p.get('last_name', '').strip()
+        email = p.get('email', '').strip()
+        role = p.get('role', 'technician')
+        password = p.get('password', '')
+        confirm = p.get('confirm_password', '')
+
+        if not target and User.objects.filter(username=username).exists():
+            error = f'Username "{username}" is already taken.'
+        elif password and password != confirm:
+            error = 'Passwords do not match.'
+        else:
+            if target:
+                target.username = username
+                target.first_name = first_name
+                target.last_name = last_name
+                target.email = email
+                if password:
+                    target.set_password(password)
+                    if target == request.user:
+                        update_session_auth_hash(request, target)
+                target.save()
+                target.profile.role = role
+                target.profile.save()
+            else:
+                user = User.objects.create_user(
+                    username=username,
+                    password=password,
+                    first_name=first_name,
+                    last_name=last_name,
+                    email=email,
+                )
+                UserProfile.objects.create(user=user, role=role)
+            return redirect('admin_users')
+
+    return render(request, 'technician/admin_user_form.html', {
+        'target': target,
+        'ROLES': UserProfile.ROLES,
+        'error': error,
     })

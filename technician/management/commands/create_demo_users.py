@@ -100,6 +100,7 @@ class Command(BaseCommand):
             ('technician', 'tech123', 'John', 'Smith', 'technician'),
             ('operations', 'ops123', 'Sarah', 'Johnson', 'operations'),
             ('manager', 'mgr123', 'Robert', 'Wolf', 'manager'),
+            ('admin', 'admin123', 'Admin', 'Wolf', 'admin'),
         ]
         tech_user = None
         for username, password, first, last, role in users:

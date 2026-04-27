@@ -11,13 +11,14 @@
 <body>
 
   <nav class="tech-nav">
-    <a href="{% if request.user.profile.role == 'technician' %}{% url 'tech_dashboard' %}{% else %}{% url 'ops_dashboard' %}{% endif %}" class="tech-nav-brand">
+    <a href="{% if request.user.profile.role == 'technician' %}{% url 'tech_dashboard' %}{% elif request.user.profile.role == 'admin' %}{% url 'admin_users' %}{% else %}{% url 'ops_dashboard' %}{% endif %}" class="tech-nav-brand">
       <img src="{% static 'images/logo.svg' %}" alt="Wolf Backflow">
       <div>
         <div class="tech-nav-title">WOLF BACKFLOW</div>
         <div class="tech-nav-subtitle">
           {% if request.user.profile.role == 'operations' %}Operations Portal
           {% elif request.user.profile.role == 'manager' %}Manager Portal
+          {% elif request.user.profile.role == 'admin' %}Admin Portal
           {% else %}Technician Portal{% endif %}
         </div>
       </div>

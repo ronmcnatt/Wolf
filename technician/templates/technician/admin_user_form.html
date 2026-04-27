@@ -1,0 +1,79 @@
+{% extends "technician/base.html" %}
+
+{% block title %}{% if target %}Edit User{% else %}Add User{% endif %} — Wolf Backflow{% endblock %}
+
+{% block content %}
+<div class="tech-page">
+
+  <a href="{% url 'admin_users' %}" class="back-link">← Back to User Management</a>
+
+  <div class="tech-page-header">
+    <div>
+      <h1>{% if target %}Edit User — {{ target.get_full_name|default:target.username }}{% else %}Add New User{% endif %}</h1>
+      <p>{% if target %}Update user details or role assignment{% else %}Create a new portal user and assign their role{% endif %}</p>
+    </div>
+  </div>
+
+  {% if error %}
+  <div class="login-error" style="margin-bottom:20px; border-radius:10px; padding:14px 18px;">{{ error }}</div>
+  {% endif %}
+
+  <div style="max-width:640px;">
+    <form method="POST" class="card">
+      {% csrf_token %}
+      <h3>{% if target %}User Details{% else %}New User{% endif %}</h3>
+
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+
+        <div class="form-group">
+          <label>First Name</label>
+          <input type="text" name="first_name" value="{{ target.first_name|default:'' }}" placeholder="John" required>
+        </div>
+        <div class="form-group">
+          <label>Last Name</label>
+          <input type="text" name="last_name" value="{{ target.last_name|default:'' }}" placeholder="Smith" required>
+        </div>
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" name="username" value="{{ target.username|default:'' }}" placeholder="jsmith" required autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" name="email" value="{{ target.email|default:'' }}" placeholder="john@wolfbackflow.com">
+        </div>
+        <div class="form-group span-2">
+          <label>Role</label>
+          <select name="role">
+            {% for val, label in ROLES %}
+            <option value="{{ val }}"
+              {% if target and target.profile.role == val %}selected
+              {% elif not target and val == 'technician' %}selected{% endif %}>
+              {{ label }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>{% if target %}New Password <span style="font-weight:400;color:var(--muted);">(leave blank to keep current)</span>{% else %}Password{% endif %}</label>
+          <input type="password" name="password" placeholder="••••••••" {% if not target %}required{% endif %} autocomplete="new-password">
+        </div>
+        <div class="form-group">
+          <label>Confirm Password</label>
+          <input type="password" name="confirm_password" placeholder="••••••••" autocomplete="new-password">
+        </div>
+
+      </div>
+
+      <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:8px;">
+        <a href="{% url 'admin_users' %}" class="btn btn-outline">Cancel</a>
+        <button type="submit" class="btn btn-primary">
+          {% if target %}Save Changes{% else %}Create User{% endif %}
+        </button>
+      </div>
+
+    </form>
+  </div>
+
+</div>
+{% endblock %}
