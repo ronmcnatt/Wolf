@@ -105,15 +105,17 @@ class Command(BaseCommand):
         tech_user = None
         for username, password, first, last, role in users:
             user, created = User.objects.get_or_create(username=username)
-            if created:
-                user.set_password(password)
-                user.first_name = first
-                user.last_name = last
-                user.save()
-            UserProfile.objects.get_or_create(user=user, defaults={'role': role})
+            user.set_password(password)
+            user.first_name = first
+            user.last_name = last
+            user.save()
+            profile, _ = UserProfile.objects.get_or_create(user=user, defaults={'role': role})
+            if profile.role != role:
+                profile.role = role
+                profile.save()
             if username == 'technician':
                 tech_user = user
-            action = 'Created' if created else 'Already exists'
+            action = 'Created' if created else 'Reset'
             self.stdout.write(f'{action}: {username} ({role})')
 
         # Seed today's jobs assigned to the technician
