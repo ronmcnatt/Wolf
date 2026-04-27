@@ -18,7 +18,7 @@ Wolf is an enterprise SaaS platform for commercial backflow testing companies. T
 ```
 wolf_backflow/     # Django project config (settings, root URLs)
 public/            # Marketing site — home, services, coverage, contact
-technician/        # Technician portal — login, dashboard, job detail, test submission
+technician/        # All internal portal views — login, technician, operations, manager
 static/            # CSS and images (compiled to staticfiles/ on build)
 branding/          # Logo SVGs and branding assets
 ```
@@ -26,45 +26,79 @@ branding/          # Logo SVGs and branding assets
 ## Running Locally
 ```bash
 cd /Users/ronaldmcnatt/Documents/Wolf
+conda activate wolf_backflow
 python manage.py runserver
 ```
-- Tech portal login: username `test` / password `test` (hardcoded POC credentials)
-- Tech dashboard: http://localhost:8000/tech/
+- Internal portal login: http://localhost:8000/tech/login/
+- Tech dashboard: http://localhost:8000/tech/dashboard/
+- Ops dashboard: http://localhost:8000/tech/ops/
+
+## POC Users
+
+| Role | Username | Password | Lands On |
+|------|----------|----------|----------|
+| Technician | `technician` | `tech123` | Daily schedule (today's assigned jobs) |
+| Operations | `operations` | `ops123` | Job management dashboard |
+| Manager | `manager` | `mgr123` | Job management dashboard |
+
+Users and today's sample jobs are seeded automatically on deploy via `create_demo_users` management command.
+To re-seed locally: `python manage.py create_demo_users`
 
 ## Data Models
 
+### UserProfile (technician/models.py)
+Links Django's built-in `User` to a role. Roles: `technician`, `operations`, `manager`.
+
+### Job (technician/models.py)
+Stores all job/site information. Fields cover:
+- Customer, address, contact, phone
+- Scheduled date and time
+- Assigned technician (ForeignKey to User)
+- Status: pending / in_progress / completed / cancelled
+- Device identity: type, size, make, model, serial, location notes
+- Map coordinates: property lat/lng and device lat/lng
+- Created/updated timestamps
+
 ### TestResult (technician/models.py)
-Persists backflow test readings to the database. Fields cover:
-- Job reference, customer, address
-- Device identity: type (RPZ, DCVA, PVB, SVB, RPDA), size, manufacturer, model, serial, install year
+Persists backflow test readings submitted by technicians. Fields cover:
+- Job reference (ForeignKey to Job), customer, address
+- Device identity: type, size, manufacturer, model, serial, install year
 - Test readings: CV1/CV2 results + PSI, RV result + PSI, line PSI
-- Overall pass/fail, technician initials, notes
+- Overall pass/fail, technician initials, notes, submitted_by user
 - Future: utility API submission tracking (`utility_submitted`, `utility_submitted_at`)
 
-### Jobs (POC — NOT yet in DB)
-Jobs are currently hardcoded as `SAMPLE_JOBS` list in `technician/views.py`. This is a proof-of-concept only. A proper `Job` database model needs to be built.
+## Role-Based Access
+
+| Role | Can Access |
+|------|-----------|
+| Technician | Daily schedule, job detail, test submission form |
+| Operations | Job management dashboard, create/edit jobs, assign technicians |
+| Manager | Same as Operations (manager-specific views planned) |
+
+Login redirects automatically based on role. Unauthorized role access redirects to login.
 
 ## Current POC Limitations (Known Tech Debt)
-1. **No Job model** — jobs are a hardcoded list in views.py, not stored in the database
-2. **Hardcoded auth** — technician login checks `username == 'test' and password == 'test'`; needs proper Django auth or a Technician model
-3. **No multi-tenant support** — no concept of separate companies/accounts yet
-4. **No scheduling system** — jobs have hardcoded times, no real dispatch/scheduling
-5. **No utility API integration** — `utility_submitted` field exists but no actual submission logic
+1. **No multi-tenant support** — no concept of separate companies/accounts yet
+2. **No scheduling system** — jobs assigned manually by operations, no dispatch/routing optimization
+3. **No utility API integration** — `utility_submitted` field exists but no actual submission logic (contact JEA or BackflowManager for integration access)
+4. **Manager role** — currently sees Operations views; manager-specific reporting views not yet built
+5. **No password reset** — POC credentials only, no email/reset flow
 
 ## Deployment
-- Platform: Render
-- Build: `pip install -r requirements.txt && python manage.py collectstatic --no-input && python manage.py migrate`
+- Platform: Render — https://wolf-9bbc.onrender.com
+- Build: `pip install -r requirements.txt && python manage.py collectstatic --no-input && python manage.py migrate && python manage.py create_demo_users`
 - Start: `gunicorn wolf_backflow.wsgi:application`
 - Env vars required: `SECRET_KEY`, `DATABASE_URL` (Supabase pooler URI, port 6543), `DEBUG=False`
 - Supabase connection: use pooler URI (not direct port 5432 — Render free tier blocks it)
 - Strip `?pgbouncer=true` from Supabase ORM connection string before setting `DATABASE_URL`
 
 ## Next Priorities (as of April 2026)
-- [ ] Build proper `Job` model and migrate SAMPLE_JOBS to database
-- [ ] Replace hardcoded auth with proper Technician model / Django auth
+- [ ] Manager-specific reporting views (test results summary, technician performance)
 - [ ] Multi-company / multi-tenant architecture for acquired companies
-- [ ] Scheduling and dispatch system
-- [ ] Utility compliance report generation and submission (mock API layer built, real utility API TBD — contact JEA or BackflowManager for integration access)
+- [ ] Scheduling and dispatch system with routing optimization
+- [ ] Utility compliance report generation and submission
+- [ ] Customer portal (separate login for property owners to view test history)
+- [ ] QuickBooks Online integration for invoicing
 
 ## Device Types Supported
 | Code | Full Name |
@@ -78,5 +112,5 @@ Jobs are currently hardcoded as `SAMPLE_JOBS` list in `technician/views.py`. Thi
 ## Conventions
 - Time zone: `America/New_York`
 - All test PSI values: `DecimalField(max_digits=6, decimal_places=1)`
-- URL namespacing: public routes at `/`, technician routes at `/tech/`
+- URL namespacing: public routes at `/`, internal portal routes at `/tech/`
 - Templates live inside each app: `technician/templates/technician/` and `public/templates/public/`
