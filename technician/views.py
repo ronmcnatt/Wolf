@@ -43,10 +43,13 @@ def tech_login(request):
             username=request.POST.get('username', ''),
             password=request.POST.get('password', ''),
         )
-        if user and hasattr(user, 'profile'):
+        if user is None:
+            error = 'Invalid username or password.'
+        else:
+            if not hasattr(user, 'profile'):
+                UserProfile.objects.create(user=user, role='technician')
             login(request, user)
             return _redirect_by_role(user)
-        error = 'Invalid username or password.'
     return render(request, 'technician/login.html', {'error': error})
 
 
