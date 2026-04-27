@@ -493,6 +493,64 @@ a { color: inherit; text-decoration: none; }
 .login-card .form-group input { width: 100%; padding: 11px 14px; border: 1.5px solid var(--mid); border-radius: 8px; font-size: 14px; }
 .login-card .btn { width: 100%; justify-content: center; padding: 12px; font-size: 15px; margin-top: 8px; }
 
+/* ── ROLE BADGE ── */
+.role-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 10px;
+}
+.role-technician { background: rgba(0,168,168,0.2); color: var(--teal); }
+.role-operations { background: rgba(217,119,6,0.2); color: var(--warning); }
+.role-manager    { background: rgba(27,58,92,0.3); color: #93c5fd; }
+
+/* ── FILTER BAR ── */
+.filter-bar {
+  background: var(--white);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.filter-group { display: flex; flex-direction: column; gap: 5px; }
+.filter-group label { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+.filter-group input, .filter-group select { padding: 8px 12px; border: 1.5px solid var(--mid); border-radius: 8px; font-size: 13px; outline: none; }
+.filter-group input:focus, .filter-group select:focus { border-color: var(--teal); }
+
+/* ── OPS TABLE ── */
+.ops-table-wrap {
+  background: var(--white);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.ops-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ops-table thead { background: var(--light); }
+.ops-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--mid);
+}
+.ops-table td { padding: 14px 16px; border-bottom: 1px solid var(--light); vertical-align: middle; }
+.ops-table tbody tr:last-child td { border-bottom: none; }
+.ops-table tbody tr:hover { background: var(--light); }
+.td-customer { font-weight: 700; color: var(--navy); }
+.td-time { font-weight: 700; color: var(--navy); white-space: nowrap; }
+.td-address { color: var(--muted); max-width: 220px; }
+.job-row-completed td { opacity: 0.65; }
+.job-row-cancelled td { opacity: 0.45; }
+
 @media (max-width: 768px) {
   .stats-row { grid-template-columns: repeat(2, 1fr); }
   .job-detail-grid { grid-template-columns: 1fr; }

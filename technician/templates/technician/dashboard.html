@@ -8,41 +8,28 @@
   <div class="tech-page-header">
     <div>
       <h1>Today's Schedule</h1>
-      <p>{% now "l, F j, Y" %} &nbsp;·&nbsp; {{ tech_name }}</p>
+      <p>{{ today|date:"l, F j, Y" }} &nbsp;·&nbsp; {{ request.user.get_full_name }}</p>
     </div>
   </div>
 
-  <!-- STATS -->
   <div class="stats-row">
-    <div class="stat-card total">
-      <div class="num">{{ total }}</div>
-      <div class="lbl">Total Jobs</div>
-    </div>
-    <div class="stat-card done">
-      <div class="num">{{ completed }}</div>
-      <div class="lbl">Completed</div>
-    </div>
-    <div class="stat-card active">
-      <div class="num">{{ in_progress }}</div>
-      <div class="lbl">In Progress</div>
-    </div>
-    <div class="stat-card waiting">
-      <div class="num">{{ pending }}</div>
-      <div class="lbl">Pending</div>
-    </div>
+    <div class="stat-card total"><div class="num">{{ total }}</div><div class="lbl">Total Jobs</div></div>
+    <div class="stat-card done"><div class="num">{{ completed }}</div><div class="lbl">Completed</div></div>
+    <div class="stat-card active"><div class="num">{{ in_progress }}</div><div class="lbl">In Progress</div></div>
+    <div class="stat-card waiting"><div class="num">{{ pending }}</div><div class="lbl">Pending</div></div>
   </div>
 
-  <!-- JOB LIST -->
+  {% if jobs %}
   <div class="schedule-list">
     {% for job in jobs %}
     <div class="job-card {{ job.status }}">
-      <div class="job-time">{{ job.time }}</div>
+      <div class="job-time">{{ job.scheduled_time|time:"g:i A" }}</div>
       <div class="job-info">
         <div class="customer">{{ job.customer }}</div>
         <div class="address">{{ job.address }}</div>
       </div>
       <div class="job-meta">
-        <span class="badge badge-device">{{ job.device_type }} · {{ job.device_size }}</span>
+        <span class="badge badge-device">{{ job.device_type }}{% if job.device_size %} · {{ job.device_size }}{% endif %}</span>
         <span class="badge badge-{{ job.status }}">
           {% if job.status == 'completed' %}✓ Completed
           {% elif job.status == 'in_progress' %}● In Progress
@@ -53,6 +40,13 @@
     </div>
     {% endfor %}
   </div>
+  {% else %}
+  <div style="text-align:center; padding:60px 0; color:var(--muted);">
+    <div style="font-size:48px; margin-bottom:16px;">📋</div>
+    <p style="font-size:16px; font-weight:600;">No jobs scheduled for today.</p>
+    <p style="font-size:13px; margin-top:6px;">Check with your operations team for assignments.</p>
+  </div>
+  {% endif %}
 
 </div>
 {% endblock %}

@@ -1,0 +1,109 @@
+{% extends "technician/base.html" %}
+
+{% block title %}Operations Dashboard — Wolf Backflow{% endblock %}
+
+{% block content %}
+<div class="tech-page">
+
+  <div class="tech-page-header">
+    <div>
+      <h1>Job Management</h1>
+      <p>Create, assign, and track backflow testing jobs</p>
+    </div>
+    <a href="{% url 'ops_job_new' %}" class="btn btn-primary">+ New Job</a>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-card total"><div class="num">{{ total }}</div><div class="lbl">Showing</div></div>
+    <div class="stat-card waiting"><div class="num">{{ unassigned }}</div><div class="lbl">Unassigned</div></div>
+    <div class="stat-card active"><div class="num">{{ pending }}</div><div class="lbl">Pending</div></div>
+    <div class="stat-card done"><div class="num">{{ completed }}</div><div class="lbl">Completed</div></div>
+  </div>
+
+  <!-- FILTERS -->
+  <form method="GET" action="{% url 'ops_dashboard' %}" class="filter-bar">
+    <div class="filter-group">
+      <label>Date</label>
+      <input type="date" name="date" value="{{ date_filter }}">
+    </div>
+    <div class="filter-group">
+      <label>Status</label>
+      <select name="status">
+        <option value="">All Statuses</option>
+        <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+        <option value="in_progress" {% if status_filter == 'in_progress' %}selected{% endif %}>In Progress</option>
+        <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+        <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Technician</label>
+      <select name="tech">
+        <option value="">All Technicians</option>
+        {% for tech in technicians %}
+        <option value="{{ tech.id }}" {% if tech_filter == tech.id|stringformat:"s" %}selected{% endif %}>
+          {{ tech.get_full_name|default:tech.username }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-outline">Filter</button>
+    <a href="{% url 'ops_dashboard' %}" class="btn btn-outline">Clear</a>
+  </form>
+
+  <!-- JOB TABLE -->
+  {% if jobs %}
+  <div class="ops-table-wrap">
+    <table class="ops-table">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Customer</th>
+          <th>Address</th>
+          <th>Device</th>
+          <th>Assigned To</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for job in jobs %}
+        <tr class="job-row-{{ job.status }}">
+          <td class="td-time">{{ job.scheduled_time|time:"g:i A" }}</td>
+          <td class="td-customer">{{ job.customer }}</td>
+          <td class="td-address">{{ job.address }}</td>
+          <td><span class="badge badge-device">{{ job.device_type }}{% if job.device_size %} · {{ job.device_size }}{% endif %}</span></td>
+          <td>
+            {% if job.assigned_to %}
+              {{ job.assigned_to.get_full_name|default:job.assigned_to.username }}
+            {% else %}
+              <span style="color:var(--warning); font-weight:600;">Unassigned</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge badge-{{ job.status }}">
+              {% if job.status == 'completed' %}✓ Completed
+              {% elif job.status == 'in_progress' %}● In Progress
+              {% elif job.status == 'cancelled' %}✕ Cancelled
+              {% else %}○ Pending{% endif %}
+            </span>
+          </td>
+          <td>
+            <a href="{% url 'ops_job_edit' job.id %}" class="btn btn-outline btn-sm">Edit</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="text-align:center; padding:60px 0; color:var(--muted);">
+    <div style="font-size:48px; margin-bottom:16px;">📋</div>
+    <p style="font-size:16px; font-weight:600;">No jobs found for the selected filters.</p>
+    <a href="{% url 'ops_job_new' %}" class="btn btn-primary" style="margin-top:16px;">Create First Job</a>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

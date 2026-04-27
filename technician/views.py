@@ -1,192 +1,103 @@
-from django.shortcuts import render, redirect
-from django.contrib import messages
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.models import User
+from django.utils import timezone
 from functools import wraps
-from .models import TestResult
-
-SAMPLE_JOBS = [
-    {
-        'id': 1, 'time': '8:00 AM', 'status': 'completed',
-        'customer': 'Riverside Auto Wash',
-        'address': '1234 Riverside Ave, Jacksonville, FL 32204',
-        'contact': 'Mike Johnson', 'phone': '(904) 555-0142',
-        'device_type': 'RPZ', 'device_size': '1"',
-        'device_make': 'Watts', 'device_model': '009', 'serial': 'W2204-8871',
-        'device_notes': 'Behind fence, NE corner of building',
-        'lat': 30.3149, 'lng': -81.6693,
-        'device_lat': 30.31498, 'device_lng': -81.66915,
-    },
-    {
-        'id': 2, 'time': '9:15 AM', 'status': 'completed',
-        'customer': 'Sunshine Apartments',
-        'address': '567 Park St, Jacksonville, FL 32204',
-        'contact': 'Sandra Lee', 'phone': '(904) 555-0198',
-        'device_type': 'DCVA', 'device_size': '3/4"',
-        'device_make': 'Febco', 'device_model': '850', 'serial': 'F2019-3341',
-        'device_notes': 'Utility room, ground floor, west wing',
-        'lat': 30.3220, 'lng': -81.6580,
-        'device_lat': 30.32208, 'device_lng': -81.65785,
-    },
-    {
-        'id': 3, 'time': '10:30 AM', 'status': 'in_progress',
-        'customer': 'Orange Park Commons HOA',
-        'address': '890 Blanding Blvd, Orange Park, FL 32065',
-        'contact': 'Tom Rivera', 'phone': '(904) 555-0211',
-        'device_type': 'RPZ', 'device_size': '2"',
-        'device_make': 'Wilkins', 'device_model': '975XL', 'serial': 'WK2021-6612',
-        'device_notes': 'Irrigation backflow, behind clubhouse',
-        'lat': 30.1654, 'lng': -81.7065,
-        'device_lat': 30.16550, 'device_lng': -81.70635,
-    },
-    {
-        'id': 4, 'time': '11:45 AM', 'status': 'pending',
-        'customer': 'Fleming Island Medical Center',
-        'address': '234 Town Center Blvd, Fleming Island, FL 32003',
-        'contact': 'Dr. Patricia Holt', 'phone': '(904) 555-0334',
-        'device_type': 'RPZ', 'device_size': '1.5"',
-        'device_make': 'Ames', 'device_model': '4000SS', 'serial': 'A2022-1197',
-        'device_notes': 'Mechanical room, lower level, south entrance',
-        'lat': 30.1010, 'lng': -81.7143,
-        'device_lat': 30.10108, 'device_lng': -81.71415,
-    },
-    {
-        'id': 5, 'time': '1:00 PM', 'status': 'pending',
-        'customer': 'St. Johns County Recreation Center',
-        'address': '456 Race Track Rd, St. Johns, FL 32259',
-        'contact': 'Gary Simmons', 'phone': '(904) 555-0455',
-        'device_type': 'PVB', 'device_size': '1"',
-        'device_make': 'Watts', 'device_model': '800M4', 'serial': 'W2020-5589',
-        'device_notes': 'Exterior, east side of building near irrigation valve box',
-        'lat': 30.1580, 'lng': -81.6043,
-        'device_lat': 30.15808, 'device_lng': -81.60415,
-    },
-    {
-        'id': 6, 'time': '2:00 PM', 'status': 'pending',
-        'customer': 'Ponte Vedra Beach Club',
-        'address': '789 A1A N, Ponte Vedra Beach, FL 32082',
-        'contact': 'Claire Ashford', 'phone': '(904) 555-0567',
-        'device_type': 'DCVA', 'device_size': '1"',
-        'device_make': 'Febco', 'device_model': '860', 'serial': 'F2023-8823',
-        'device_notes': 'Pool equipment room, north end of clubhouse',
-        'lat': 30.2394, 'lng': -81.3883,
-        'device_lat': 30.23948, 'device_lng': -81.38815,
-    },
-    {
-        'id': 7, 'time': '3:00 PM', 'status': 'pending',
-        'customer': 'Atlantic Beach City Hall',
-        'address': '800 Seminole Rd, Atlantic Beach, FL 32233',
-        'contact': 'Derrick Fowler', 'phone': '(904) 555-0688',
-        'device_type': 'RPZ', 'device_size': '1"',
-        'device_make': 'Watts', 'device_model': '909', 'serial': 'W2021-2214',
-        'device_notes': 'Exterior east wall, padlocked enclosure',
-        'lat': 30.3371, 'lng': -81.3996,
-        'device_lat': 30.33718, 'device_lng': -81.39945,
-    },
-    {
-        'id': 8, 'time': '3:45 PM', 'status': 'pending',
-        'customer': 'Neptune Beach HOA',
-        'address': '123 Neptune Ave, Neptune Beach, FL 32266',
-        'contact': 'Beth Calloway', 'phone': '(904) 555-0712',
-        'device_type': 'PVB', 'device_size': '3/4"',
-        'device_make': 'Wilkins', 'device_model': '720A', 'serial': 'WK2019-9901',
-        'device_notes': 'Irrigation system, near front entrance sign',
-        'lat': 30.3127, 'lng': -81.4027,
-        'device_lat': 30.31278, 'device_lng': -81.40255,
-    },
-    {
-        'id': 9, 'time': '4:30 PM', 'status': 'pending',
-        'customer': 'Mandarin Presbyterian Church',
-        'address': '11946 Mandarin Rd, Jacksonville, FL 32223',
-        'contact': 'Pastor Dale Norris', 'phone': '(904) 555-0834',
-        'device_type': 'DCVA', 'device_size': '3/4"',
-        'device_make': 'Ames', 'device_model': '2000SS', 'serial': 'A2020-7743',
-        'device_notes': 'Exterior south side, irrigation backflow near garden beds',
-        'lat': 30.1580, 'lng': -81.6243,
-        'device_lat': 30.15808, 'device_lng': -81.62415,
-    },
-    {
-        'id': 10, 'time': '5:15 PM', 'status': 'pending',
-        'customer': 'Baymeadows Plaza',
-        'address': '8550 Baymeadows Rd, Jacksonville, FL 32256',
-        'contact': 'Lisa Crane', 'phone': '(904) 555-0956',
-        'device_type': 'RPZ', 'device_size': '2"',
-        'device_make': 'Febco', 'device_model': '880V', 'serial': 'F2022-4456',
-        'device_notes': 'Loading dock utility room, rear of building',
-        'lat': 30.2347, 'lng': -81.5513,
-        'device_lat': 30.23478, 'device_lng': -81.55115,
-    },
-]
+from .models import UserProfile, Job, TestResult
 
 
-def tech_required(view_func):
-    @wraps(view_func)
-    def wrapper(request, *args, **kwargs):
-        if not request.session.get('tech_logged_in'):
-            return redirect('tech_login')
-        return view_func(request, *args, **kwargs)
-    return wrapper
+# ── Role-based access decorators ──────────────────────────────────────────────
 
+def role_required(*roles):
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapper(request, *args, **kwargs):
+            if not request.user.is_authenticated:
+                return redirect('tech_login')
+            profile = getattr(request.user, 'profile', None)
+            if not profile or profile.role not in roles:
+                return redirect('tech_login')
+            return view_func(request, *args, **kwargs)
+        return wrapper
+    return decorator
+
+
+def _redirect_by_role(user):
+    role = getattr(getattr(user, 'profile', None), 'role', '')
+    if role in ('operations', 'manager'):
+        return redirect('ops_dashboard')
+    return redirect('tech_dashboard')
+
+
+# ── Auth ──────────────────────────────────────────────────────────────────────
 
 def tech_login(request):
-    if request.session.get('tech_logged_in'):
-        return redirect('tech_dashboard')
+    if request.user.is_authenticated:
+        return _redirect_by_role(request.user)
     error = None
     if request.method == 'POST':
-        username = request.POST.get('username', '')
-        password = request.POST.get('password', '')
-        if username == 'test' and password == 'test':
-            request.session['tech_logged_in'] = True
-            request.session['tech_name'] = 'Test Technician'
-            return redirect('tech_dashboard')
+        user = authenticate(
+            request,
+            username=request.POST.get('username', ''),
+            password=request.POST.get('password', ''),
+        )
+        if user and hasattr(user, 'profile'):
+            login(request, user)
+            return _redirect_by_role(user)
         error = 'Invalid username or password.'
     return render(request, 'technician/login.html', {'error': error})
 
 
 def tech_logout(request):
-    request.session.flush()
+    logout(request)
     return redirect('tech_login')
 
 
-@tech_required
+# ── Technician views ──────────────────────────────────────────────────────────
+
+@role_required('technician', 'manager')
 def tech_dashboard(request):
-    completed = sum(1 for j in SAMPLE_JOBS if j['status'] == 'completed')
-    in_progress = sum(1 for j in SAMPLE_JOBS if j['status'] == 'in_progress')
-    pending = sum(1 for j in SAMPLE_JOBS if j['status'] == 'pending')
+    today = timezone.localdate()
+    jobs = Job.objects.filter(assigned_to=request.user, scheduled_date=today)
+    completed = jobs.filter(status='completed').count()
+    in_progress = jobs.filter(status='in_progress').count()
+    pending = jobs.filter(status='pending').count()
     return render(request, 'technician/dashboard.html', {
-        'jobs': SAMPLE_JOBS,
+        'jobs': jobs,
         'completed': completed,
         'in_progress': in_progress,
         'pending': pending,
-        'total': len(SAMPLE_JOBS),
-        'tech_name': request.session.get('tech_name', 'Technician'),
+        'total': jobs.count(),
+        'today': today,
     })
 
 
-@tech_required
+@role_required('technician', 'manager')
 def tech_job_detail(request, job_id):
-    job = next((j for j in SAMPLE_JOBS if j['id'] == job_id), None)
-    if not job:
-        return redirect('tech_dashboard')
-
+    job = get_object_or_404(Job, pk=job_id)
     submitted = False
+
     if request.method == 'POST':
         p = request.POST
-        def psi(field):
-            try: return float(p.get(field)) if p.get(field) else None
+
+        def psi(f):
+            try: return float(p[f]) if p.get(f) else None
             except ValueError: return None
-        def year(field):
-            try: return int(p.get(field)) if p.get(field) else None
+
+        def yr(f):
+            try: return int(p[f]) if p.get(f) else None
             except ValueError: return None
 
         TestResult.objects.create(
-            job_id=job_id,
-            customer=job['customer'],
-            address=job['address'],
-            device_type=p.get('device_type', job['device_type']),
-            device_size=p.get('device_size', job['device_size']),
-            manufacturer=p.get('manufacturer', job['device_make']),
-            model=p.get('model', job['device_model']),
-            serial=p.get('serial', job['serial']),
-            install_year=year('install_year'),
+            job=job,
+            customer=job.customer,
+            address=job.address,
+            device_type=p.get('device_type', job.device_type),
+            device_size=p.get('device_size', job.device_size),
+            manufacturer=p.get('manufacturer', job.device_make),
+            model=p.get('model', job.device_model),
+            serial=p.get('serial', job.serial),
+            install_year=yr('install_year'),
             test_date=p.get('test_date'),
             test_time=p.get('test_time'),
             cv1_result=p.get('cv1_result', ''),
@@ -199,13 +110,104 @@ def tech_job_detail(request, job_id):
             overall_result=p.get('overall_result', 'pass'),
             notes=p.get('notes', ''),
             technician_initials=p.get('initials', '').upper(),
+            submitted_by=request.user,
         )
+        job.status = 'completed'
+        job.save()
         submitted = True
 
-    prior_results = TestResult.objects.filter(job_id=job_id)
+    prior_results = job.test_results.all()
     return render(request, 'technician/job_detail.html', {
         'job': job,
         'submitted': submitted,
         'prior_results': prior_results,
-        'tech_name': request.session.get('tech_name', 'Technician'),
+    })
+
+
+# ── Operations views ──────────────────────────────────────────────────────────
+
+@role_required('operations', 'manager')
+def ops_dashboard(request):
+    date_filter = request.GET.get('date', str(timezone.localdate()))
+    status_filter = request.GET.get('status', '')
+    tech_filter = request.GET.get('tech', '')
+
+    jobs = Job.objects.select_related('assigned_to').all()
+    if date_filter:
+        jobs = jobs.filter(scheduled_date=date_filter)
+    if status_filter:
+        jobs = jobs.filter(status=status_filter)
+    if tech_filter:
+        jobs = jobs.filter(assigned_to__id=tech_filter)
+
+    technicians = User.objects.filter(profile__role='technician').order_by('first_name')
+    total = jobs.count()
+    unassigned = jobs.filter(assigned_to__isnull=True).count()
+    completed = jobs.filter(status='completed').count()
+    pending = jobs.filter(status='pending').count()
+
+    return render(request, 'technician/ops_dashboard.html', {
+        'jobs': jobs,
+        'technicians': technicians,
+        'date_filter': date_filter,
+        'status_filter': status_filter,
+        'tech_filter': tech_filter,
+        'total': total,
+        'unassigned': unassigned,
+        'completed': completed,
+        'pending': pending,
+    })
+
+
+@role_required('operations', 'manager')
+def ops_job_form(request, job_id=None):
+    job = get_object_or_404(Job, pk=job_id) if job_id else None
+    technicians = User.objects.filter(profile__role='technician').order_by('first_name')
+
+    if request.method == 'POST':
+        p = request.POST
+
+        def flt(f):
+            try: return float(p[f]) if p.get(f) else None
+            except ValueError: return None
+
+        assigned_id = p.get('assigned_to')
+        assigned = User.objects.filter(pk=assigned_id).first() if assigned_id else None
+
+        data = dict(
+            customer=p.get('customer', ''),
+            address=p.get('address', ''),
+            contact=p.get('contact', ''),
+            phone=p.get('phone', ''),
+            scheduled_date=p.get('scheduled_date'),
+            scheduled_time=p.get('scheduled_time'),
+            status=p.get('status', 'pending'),
+            assigned_to=assigned,
+            device_type=p.get('device_type', 'RPZ'),
+            device_size=p.get('device_size', ''),
+            device_make=p.get('device_make', ''),
+            device_model=p.get('device_model', ''),
+            serial=p.get('serial', ''),
+            device_notes=p.get('device_notes', ''),
+            lat=flt('lat'),
+            lng=flt('lng'),
+            device_lat=flt('device_lat'),
+            device_lng=flt('device_lng'),
+            notes=p.get('notes', ''),
+        )
+
+        if job:
+            for k, v in data.items():
+                setattr(job, k, v)
+            job.save()
+        else:
+            job = Job.objects.create(**data)
+
+        return redirect('ops_dashboard')
+
+    return render(request, 'technician/ops_job_form.html', {
+        'job': job,
+        'technicians': technicians,
+        'DEVICE_TYPES': Job.DEVICE_TYPES,
+        'STATUS_CHOICES': Job.STATUS_CHOICES,
     })
