@@ -1,1 +1,1 @@
-web: python manage.py create_demo_users && gunicorn wolf_backflow.wsgi:application
+web: DJANGO_SEED_ON_READY=1 gunicorn wolf_backflow.wsgi:application

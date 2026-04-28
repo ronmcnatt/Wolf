@@ -58,49 +58,6 @@ def tech_logout(request):
     return redirect('tech_login')
 
 
-def db_status(request):
-    from django.http import JsonResponse
-    from django.db import connection
-    try:
-        user_count = User.objects.count()
-        profile_count = UserProfile.objects.count()
-        db_name = connection.settings_dict.get('NAME', 'unknown')
-        engine = connection.settings_dict.get('ENGINE', 'unknown')
-        return JsonResponse({
-            'engine': engine,
-            'db': db_name,
-            'users': user_count,
-            'profiles': profile_count,
-            'usernames': list(User.objects.values_list('username', flat=True)),
-        })
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
-
-
-def seed_users(request):
-    from django.http import JsonResponse
-    DEMO_USERS = [
-        ('technician', 'tech123', 'John',   'Smith',   'technician'),
-        ('operations', 'ops123',  'Sarah',  'Johnson', 'operations'),
-        ('manager',    'mgr123',  'Robert', 'Wolf',    'manager'),
-        ('admin',      'admin123','Admin',  'Wolf',    'admin'),
-    ]
-    results = []
-    try:
-        for username, password, first, last, role in DEMO_USERS:
-            user, created = User.objects.get_or_create(username=username)
-            user.set_password(password)
-            user.first_name = first
-            user.last_name = last
-            user.save()
-            profile, _ = UserProfile.objects.get_or_create(user=user, defaults={'role': role})
-            if profile.role != role:
-                profile.role = role
-                profile.save()
-            results.append({'username': username, 'created': created})
-        return JsonResponse({'ok': True, 'users': results})
-    except Exception as e:
-        return JsonResponse({'ok': False, 'error': str(e)}, status=500)
 
 
 # ── Technician views ──────────────────────────────────────────────────────────

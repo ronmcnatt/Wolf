@@ -3,7 +3,7 @@ services:
     name: wolf-backflow
     runtime: python
     buildCommand: pip install -r requirements.txt && python manage.py collectstatic --no-input && python manage.py migrate
-    startCommand: python manage.py create_demo_users && gunicorn wolf_backflow.wsgi:application
+    startCommand: DJANGO_SEED_ON_READY=1 gunicorn wolf_backflow.wsgi:application
     envVars:
       - key: SECRET_KEY
         generateValue: true
