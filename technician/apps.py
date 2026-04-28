@@ -22,6 +22,7 @@ class TechnicianConfig(AppConfig):
             ('operations', 'ops123',  'Sarah',  'Johnson', 'operations'),
             ('manager',    'mgr123',  'Robert', 'Wolf',    'manager'),
             ('admin',      'admin123','Admin',  'Wolf',    'admin'),
+            ('customer',   'cust123', 'James',  'Wilson',  'customer'),
         ]
         for username, password, first, last, role in DEMO_USERS:
             user, _ = User.objects.get_or_create(username=username)

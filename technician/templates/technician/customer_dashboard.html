@@ -1,0 +1,98 @@
+{% extends "technician/base.html" %}
+
+{% block title %}My Account — Wolf Backflow{% endblock %}
+
+{% block content %}
+<div class="tech-page">
+
+  <div class="tech-page-header">
+    <div>
+      <h1>Welcome, {{ request.user.get_full_name|default:request.user.username }}</h1>
+      <p>Your backflow testing history and upcoming service</p>
+    </div>
+  </div>
+
+  <!-- UPCOMING SERVICE -->
+  <div class="card" style="margin-bottom:20px;">
+    <h3>Upcoming Service</h3>
+    {% if upcoming_jobs %}
+      <div class="ops-table-wrap">
+        <table class="ops-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Address</th>
+              <th>Device</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for job in upcoming_jobs %}
+            <tr>
+              <td>{{ job.scheduled_date|date:"M j, Y" }}</td>
+              <td>{{ job.scheduled_time|time:"g:i A" }}</td>
+              <td>{{ job.address }}</td>
+              <td>{{ job.device_type }} {{ job.device_size }}</td>
+              <td><span class="badge status-{{ job.status }}">{{ job.get_status_display }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-icon">📅</div>
+        <p>No upcoming service scheduled.</p>
+        <p style="font-size:13px; color:var(--muted);">Contact us at <a href="tel:+19045550100">(904) 555-0100</a> to schedule your next backflow test.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- TEST HISTORY -->
+  <div class="card">
+    <h3>Test History</h3>
+    {% if recent_results %}
+      <div class="ops-table-wrap">
+        <table class="ops-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Address</th>
+              <th>Device</th>
+              <th>Serial</th>
+              <th>Result</th>
+              <th>Technician</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for result in recent_results %}
+            <tr>
+              <td>{{ result.submitted_at|date:"M j, Y" }}</td>
+              <td>{{ result.address }}</td>
+              <td>{{ result.device_type }} {{ result.device_size }} — {{ result.manufacturer }} {{ result.model }}</td>
+              <td style="font-family:monospace;">{{ result.serial|default:"—" }}</td>
+              <td>
+                {% if result.passed %}
+                  <span class="badge status-completed">Pass</span>
+                {% else %}
+                  <span class="badge status-cancelled">Fail</span>
+                {% endif %}
+              </td>
+              <td>{{ result.submitted_by.get_full_name|default:result.tech_initials|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-icon">📋</div>
+        <p>No test records on file yet.</p>
+        <p style="font-size:13px; color:var(--muted);">Your completed backflow test reports will appear here after each service visit.</p>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

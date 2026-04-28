@@ -33,6 +33,7 @@ python manage.py runserver
 - Tech dashboard: http://localhost:8000/tech/dashboard/
 - Ops dashboard: http://localhost:8000/tech/ops/
 - Admin dashboard: http://localhost:8000/tech/admin/users/
+- Customer portal: http://localhost:8000/tech/customer/
 
 ## POC Users
 
@@ -42,14 +43,15 @@ python manage.py runserver
 | Operations | `operations` | `ops123`   | Job management dashboard               |
 | Manager    | `manager`    | `mgr123`   | Job management dashboard               |
 | Admin      | `admin`      | `admin123` | User management (all users + roles)    |
+| Customer   | `customer`   | `cust123`  | Customer portal (test history)         |
 
 Demo users are seeded automatically on startup via `TechnicianConfig.ready()` in `technician/apps.py` (gated by `DJANGO_SEED_ON_READY=1` env var). Passwords are always reset on each startup so credentials never drift.
-To re-seed locally: `python manage.py create_demo_users`
+To re-seed locally: `python manage.py create_demo_users`.  Change this behavior when you want user changes to persist.
 
 ## Data Models
 
 ### UserProfile (technician/models.py)
-Links Django's built-in `User` to a role. Roles: `technician`, `operations`, `manager`, `admin`.
+Links Django's built-in `User` to a role. Roles: `technician`, `operations`, `manager`, `admin`, `customer`.
 
 ### Job (technician/models.py)
 Stores all job/site information. Fields cover:
@@ -77,6 +79,7 @@ Persists backflow test readings submitted by technicians. Fields cover:
 | Operations | Job management dashboard, create/edit jobs, assign technicians |
 | Manager | Same as Operations (manager-specific views planned) |
 | Admin | User management — view all users, add new users, edit roles/passwords |
+| Customer | Customer portal — view test history and upcoming service |
 
 Login redirects automatically based on role. Unauthorized role access redirects to login.
 

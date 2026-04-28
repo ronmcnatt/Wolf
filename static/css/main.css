@@ -100,6 +100,17 @@ img { display: block; max-width: 100%; }
 
 .btn-login:hover { background: var(--teal-dark) !important; }
 
+.btn-login-outline {
+  background: transparent !important;
+  color: var(--white) !important;
+  padding: 8px 18px !important;
+  border-radius: 6px !important;
+  font-weight: 600 !important;
+  border: 2px solid rgba(255,255,255,0.5) !important;
+  transition: border-color 0.2s, background 0.2s !important;
+}
+.btn-login-outline:hover { border-color: var(--white) !important; background: rgba(255,255,255,0.1) !important; }
+
 /* ── HERO ── */
 .hero {
   background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy) 60%, #1a4a6e 100%);
@@ -587,7 +598,7 @@ footer ul a:hover { color: var(--teal); }
     border-radius: 8px;
   }
 
-  .btn-login {
+  .btn-login, .btn-login-outline {
     margin-top: 8px;
     text-align: center;
   }

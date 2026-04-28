@@ -18,4 +18,7 @@ urlpatterns = [
     path('admin/users/', views.admin_users, name='admin_users'),
     path('admin/users/new/', views.admin_user_form, name='admin_user_new'),
     path('admin/users/<int:user_id>/edit/', views.admin_user_form, name='admin_user_edit'),
+
+    # Customer
+    path('customer/', views.customer_dashboard, name='customer_dashboard'),
 ]

@@ -28,6 +28,8 @@ def _redirect_by_role(user):
         return redirect('admin_users')
     if role in ('operations', 'manager'):
         return redirect('ops_dashboard')
+    if role == 'customer':
+        return redirect('customer_dashboard')
     return redirect('tech_dashboard')
 
 
@@ -283,4 +285,22 @@ def admin_user_form(request, user_id=None):
         'target': target,
         'ROLES': UserProfile.ROLES,
         'error': error,
+    })
+
+
+# ── Customer views ────────────────────────────────────────────────────────────
+
+@role_required('customer')
+def customer_dashboard(request):
+    recent_results = TestResult.objects.filter(
+        customer__icontains=request.user.get_full_name() or request.user.username
+    ).order_by('-submitted_at')[:10]
+    upcoming_jobs = Job.objects.filter(
+        status__in=('pending', 'in_progress')
+    ).filter(
+        customer__icontains=request.user.get_full_name() or request.user.username
+    ).order_by('scheduled_date', 'scheduled_time')[:5]
+    return render(request, 'technician/customer_dashboard.html', {
+        'recent_results': recent_results,
+        'upcoming_jobs': upcoming_jobs,
     })

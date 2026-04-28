@@ -19,6 +19,7 @@
           {% if request.user.profile.role == 'operations' %}Operations Portal
           {% elif request.user.profile.role == 'manager' %}Manager Portal
           {% elif request.user.profile.role == 'admin' %}Admin Portal
+          {% elif request.user.profile.role == 'customer' %}Customer Portal
           {% else %}Technician Portal{% endif %}
         </div>
       </div>

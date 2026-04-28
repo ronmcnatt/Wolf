@@ -23,7 +23,8 @@
       <li><a href="{% url 'services' %}" {% if request.resolver_match.url_name == 'services' %}class="active"{% endif %}>Services</a></li>
       <li><a href="{% url 'coverage' %}" {% if request.resolver_match.url_name == 'coverage' %}class="active"{% endif %}>Coverage</a></li>
       <li><a href="{% url 'contact' %}" {% if request.resolver_match.url_name == 'contact' %}class="active"{% endif %}>Contact</a></li>
-      <li><a href="/tech/login/" class="btn-login">Technician Login</a></li>
+      <li><a href="/tech/login/" class="btn-login">Staff Login</a></li>
+      <li><a href="/tech/login/" class="btn-login-outline">Customer Login</a></li>
     </ul>
   </nav>
 

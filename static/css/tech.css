@@ -506,6 +506,7 @@ a { color: inherit; text-decoration: none; }
 .role-operations { background: rgba(217,119,6,0.2); color: var(--warning); }
 .role-manager    { background: rgba(27,58,92,0.3); color: #93c5fd; }
 .role-admin      { background: rgba(220,38,38,0.12); color: var(--danger); }
+.role-customer   { background: rgba(124,58,237,0.12); color: #7c3aed; }
 
 /* ── FILTER BAR ── */
 .filter-bar {
