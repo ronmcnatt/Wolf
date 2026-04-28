@@ -11,6 +11,9 @@ class TechnicianConfig(AppConfig):
         if os.environ.get('DJANGO_SEED_ON_READY', '') == '1':
             try:
                 self._seed_demo_users()
+            except Exception:
+                pass
+            try:
                 self._seed_sample_customers()
             except Exception:
                 pass
