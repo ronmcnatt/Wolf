@@ -118,10 +118,17 @@ Login redirects automatically based on role. Unauthorized role access redirects 
 | 0005 | Customer model + Job jurisdiction | Customer model; state/county fields on Job |
 | 0006 | customer_latlng | lat/lng/device_lat/device_lng on Customer |
 
-## One-time Production Tasks
-After any deploy that adds new data to existing Supabase records, hit the reseed endpoint:
-- `GET https://wolf-9bbc.onrender.com/tech/reseedcoords/` — patches lat/lng onto all 10 sample customers
-  - Remove this URL from `technician/urls.py` once no longer needed.
+## Sample Data (Supabase / Production)
+All one-time seed endpoints have been run against Supabase. Current state:
+- **10 customers** — seeded with addresses and coordinates
+- **10 historical 2025 jobs** — one per customer, all completed/passed; distributed JS×4, MT×3, RD×3
+- **3 completed 2026 jobs** — Jan–Mar 2026, all by John Smith (JS), all passed
+- **7 unassigned pending 2026 jobs** — May–Jun 2026, remaining customers
+- **13 TestResult records** — one for each completed job
+
+Seed endpoints (keep in urls.py for future reseeds, idempotent):
+- `GET /tech/reseedcoords/` — patches lat/lng onto the 10 sample customers
+- `GET /tech/seedhistory/` — creates historical jobs + test results (skips if already exist)
 
 ## Next Priorities (as of April 2026)
 - [ ] Manager-specific reporting views (test results summary, technician performance)
@@ -143,7 +150,7 @@ After any deploy that adds new data to existing Supabase records, hit the reseed
 - **Customer lookup on job form**: filter-as-you-type input + select dropdown; selecting a customer auto-fills business name, address, contact, phone, state/county dropdowns, and both Leaflet map markers.
 - **Customer modal**: "+ New Customer" and "✎ Edit Customer" buttons open an inline modal (AJAX `POST` to `customer_save`); the CUSTOMERS JS array is updated in-place without a page reload.
 - **Leaflet maps**: both the job form and customer edit form have Property Location and Device Location maps (OpenStreetMap tiles via Leaflet 1.9.4). Dragging markers updates hidden lat/lng inputs. Job form has a "📍 Locate" button that geocodes the address via Nominatim.
-- **Operations dashboard tabs**: `?tab=jobs` (default) and `?tab=customers`. Customers tab has search by business name, city, or county; shows active jobs, total jobs, last test date and pass/fail result per customer.
+- **Operations dashboard tabs**: `?tab=jobs` (default) and `?tab=customers`. Jobs tab defaults to showing all jobs (no date filter); user can filter by date, status, or technician. Customers tab has search by business name, city, or county; shows active jobs, total jobs, last test date and pass/fail result per customer.
 - **State/County dropdowns**: FL counties are pre-populated; selecting a non-FL state clears the county list. Pattern used in job form, customer modal, and customer edit page.
 
 ## Conventions
