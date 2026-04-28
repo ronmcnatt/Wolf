@@ -560,6 +560,27 @@ a { color: inherit; text-decoration: none; }
   .reading-row { grid-template-columns: 1fr; }
 }
 
+/* ── TABS ── */
+.tab-nav {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 24px;
+}
+.tab-link {
+  padding: 10px 22px;
+  border-radius: 8px 8px 0 0;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--muted);
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s;
+}
+.tab-link:hover { color: var(--navy); background: rgba(0,0,0,0.03); }
+.tab-link.active { color: var(--teal); border-bottom-color: var(--teal); background: none; }
+
 /* ── MODAL ── */
 .modal-overlay {
   display: none;

@@ -190,11 +190,14 @@ def tech_job_detail(request, job_id):
 
 @role_required('operations', 'manager')
 def ops_dashboard(request):
-    date_filter = request.GET.get('date', str(timezone.localdate()))
-    status_filter = request.GET.get('status', '')
-    tech_filter = request.GET.get('tech', '')
+    tab = request.GET.get('tab', 'jobs')
 
-    jobs = Job.objects.select_related('assigned_to').all()
+    # ── Jobs tab ──
+    date_filter   = request.GET.get('date', str(timezone.localdate()))
+    status_filter = request.GET.get('status', '')
+    tech_filter   = request.GET.get('tech', '')
+
+    jobs = Job.objects.select_related('assigned_to', 'customer_ref').all()
     if date_filter:
         jobs = jobs.filter(scheduled_date=date_filter)
     if status_filter:
@@ -203,21 +206,42 @@ def ops_dashboard(request):
         jobs = jobs.filter(assigned_to__id=tech_filter)
 
     technicians = User.objects.filter(profile__role='technician').order_by('first_name')
-    total = jobs.count()
-    unassigned = jobs.filter(assigned_to__isnull=True).count()
-    completed = jobs.filter(status='completed').count()
-    pending = jobs.filter(status='pending').count()
+    total       = jobs.count()
+    unassigned  = jobs.filter(assigned_to__isnull=True).count()
+    completed   = jobs.filter(status='completed').count()
+    pending     = jobs.filter(status='pending').count()
+
+    # ── Customers tab ──
+    csearch   = request.GET.get('csearch', '').strip()
+    customers = Customer.objects.prefetch_related('jobs__test_results').all()
+    if csearch:
+        customers = customers.filter(business_name__icontains=csearch) | \
+                    customers.filter(city__icontains=csearch) | \
+                    customers.filter(county__icontains=csearch)
+    customers = customers.order_by('business_name')
+
+    customer_rows = []
+    for c in customers:
+        c_jobs       = c.jobs.all()
+        active_jobs  = sum(1 for j in c_jobs if j.status in ('pending', 'in_progress'))
+        total_jobs   = c_jobs.count()
+        last_result  = TestResult.objects.filter(job__customer_ref=c).order_by('-submitted_at').first()
+        customer_rows.append({
+            'customer':    c,
+            'active_jobs': active_jobs,
+            'total_jobs':  total_jobs,
+            'last_result': last_result,
+        })
 
     return render(request, 'technician/ops_dashboard.html', {
-        'jobs': jobs,
-        'technicians': technicians,
-        'date_filter': date_filter,
-        'status_filter': status_filter,
-        'tech_filter': tech_filter,
-        'total': total,
-        'unassigned': unassigned,
-        'completed': completed,
-        'pending': pending,
+        'tab': tab,
+        # jobs
+        'jobs': jobs, 'technicians': technicians,
+        'date_filter': date_filter, 'status_filter': status_filter, 'tech_filter': tech_filter,
+        'total': total, 'unassigned': unassigned, 'completed': completed, 'pending': pending,
+        # customers
+        'customer_rows': customer_rows, 'csearch': csearch,
+        'total_customers': Customer.objects.count(),
     })
 
 
@@ -286,6 +310,47 @@ def ops_job_form(request, job_id=None):
         'STATUS_CHOICES': Job.STATUS_CHOICES,
         'US_STATES': US_STATES,
         'FL_COUNTIES': FL_COUNTIES,
+    })
+
+
+@role_required('operations', 'manager')
+def ops_customer_form(request, customer_id=None):
+    customer = get_object_or_404(Customer, pk=customer_id) if customer_id else None
+    error = None
+
+    if request.method == 'POST':
+        p = request.POST
+        business_name = p.get('business_name', '').strip()
+        if not business_name:
+            error = 'Business name is required.'
+        else:
+            if not customer:
+                customer = Customer()
+            customer.business_name = business_name
+            customer.contact_name  = p.get('contact_name', '').strip()
+            customer.phone         = p.get('phone', '').strip()
+            customer.email         = p.get('email', '').strip()
+            customer.address       = p.get('address', '').strip()
+            customer.city          = p.get('city', '').strip()
+            customer.state         = p.get('state', 'FL')
+            customer.county        = p.get('county', '').strip()
+            customer.zip_code      = p.get('zip_code', '').strip()
+            customer.notes         = p.get('notes', '').strip()
+            customer.save()
+            return redirect('/tech/ops/?tab=customers')
+
+    job_history = []
+    if customer:
+        job_history = Job.objects.filter(customer_ref=customer)\
+                         .prefetch_related('test_results')\
+                         .order_by('-scheduled_date')[:20]
+
+    return render(request, 'technician/ops_customer_form.html', {
+        'customer':    customer,
+        'job_history': job_history,
+        'US_STATES':   US_STATES,
+        'FL_COUNTIES': FL_COUNTIES,
+        'error':       error,
     })
 
 

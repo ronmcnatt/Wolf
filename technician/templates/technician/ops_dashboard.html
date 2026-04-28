@@ -7,11 +7,117 @@
 
   <div class="tech-page-header">
     <div>
-      <h1>Job Management</h1>
-      <p>Create, assign, and track backflow testing jobs</p>
+      <h1>Operations</h1>
+      <p>Manage jobs and customers</p>
     </div>
+    {% if tab == 'customers' %}
+    <a href="{% url 'ops_customer_new' %}" class="btn btn-primary">+ New Customer</a>
+    {% else %}
     <a href="{% url 'ops_job_new' %}" class="btn btn-primary">+ New Job</a>
+    {% endif %}
   </div>
+
+  <!-- TAB NAV -->
+  <nav class="tab-nav">
+    <a href="?tab=jobs" class="tab-link {% if tab != 'customers' %}active{% endif %}">Jobs</a>
+    <a href="?tab=customers" class="tab-link {% if tab == 'customers' %}active{% endif %}">
+      Customers
+      <span style="background:var(--teal);color:white;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:6px;">{{ total_customers }}</span>
+    </a>
+  </nav>
+
+  {% if tab == 'customers' %}
+  <!-- ═══════════════════════════════ CUSTOMERS TAB ═══════════════════════════ -->
+
+  <!-- Search -->
+  <form method="GET" action="{% url 'ops_dashboard' %}" class="filter-bar" style="margin-bottom:20px;">
+    <input type="hidden" name="tab" value="customers">
+    <div class="filter-group" style="flex:1;">
+      <label>Search</label>
+      <input type="text" name="csearch" value="{{ csearch }}" placeholder="Business name, city, or county…">
+    </div>
+    <button type="submit" class="btn btn-outline">Search</button>
+    <a href="?tab=customers" class="btn btn-outline">Clear</a>
+  </form>
+
+  {% if customer_rows %}
+  <div class="ops-table-wrap">
+    <table class="ops-table">
+      <thead>
+        <tr>
+          <th>Business</th>
+          <th>Contact</th>
+          <th>Location</th>
+          <th>Active Jobs</th>
+          <th>Total Jobs</th>
+          <th>Last Test</th>
+          <th>Result</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in customer_rows %}
+        <tr>
+          <td class="td-customer">
+            <div style="font-weight:600;">{{ row.customer.business_name }}</div>
+            {% if row.customer.email %}<div style="font-size:12px; color:var(--muted);">{{ row.customer.email }}</div>{% endif %}
+          </td>
+          <td>
+            <div>{{ row.customer.contact_name|default:"—" }}</div>
+            {% if row.customer.phone %}<div style="font-size:12px; color:var(--muted);">{{ row.customer.phone }}</div>{% endif %}
+          </td>
+          <td>
+            <div>{{ row.customer.city|default:"—" }}{% if row.customer.state %}, {{ row.customer.state }}{% endif %}</div>
+            {% if row.customer.county %}<div style="font-size:12px; color:var(--muted);">{{ row.customer.county }} County</div>{% endif %}
+          </td>
+          <td>
+            {% if row.active_jobs %}
+            <span class="badge badge-in_progress">{{ row.active_jobs }} active</span>
+            {% else %}
+            <span style="color:var(--muted); font-size:13px;">—</span>
+            {% endif %}
+          </td>
+          <td style="color:var(--muted);">{{ row.total_jobs }}</td>
+          <td style="color:var(--muted); font-size:13px;">
+            {% if row.last_result %}
+              {{ row.last_result.submitted_at|date:"M j, Y" }}
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if row.last_result %}
+              {% if row.last_result.overall_result == 'pass' %}
+              <span class="badge status-completed">Pass</span>
+              {% else %}
+              <span class="badge status-cancelled">Fail</span>
+              {% endif %}
+            {% else %}
+            <span style="color:var(--muted); font-size:13px;">No tests</span>
+            {% endif %}
+          </td>
+          <td style="display:flex; gap:6px;">
+            <a href="{% url 'ops_customer_edit' row.customer.id %}" class="btn btn-outline btn-sm">Edit</a>
+            <a href="{% url 'ops_job_new' %}?customer={{ row.customer.id }}" class="btn btn-outline btn-sm">+ Job</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="text-align:center; padding:60px 0; color:var(--muted);">
+    <div style="font-size:48px; margin-bottom:16px;">🏢</div>
+    {% if csearch %}
+    <p style="font-size:16px; font-weight:600;">No customers match "{{ csearch }}".</p>
+    <a href="?tab=customers" class="btn btn-outline" style="margin-top:16px;">Clear Search</a>
+    {% else %}
+    <p style="font-size:16px; font-weight:600;">No customers yet.</p>
+    <a href="{% url 'ops_customer_new' %}" class="btn btn-primary" style="margin-top:16px;">Add First Customer</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <!-- ═══════════════════════════════ JOBS TAB ════════════════════════════════ -->
 
   <!-- STATS -->
   <div class="stats-row">
@@ -23,6 +129,7 @@
 
   <!-- FILTERS -->
   <form method="GET" action="{% url 'ops_dashboard' %}" class="filter-bar">
+    <input type="hidden" name="tab" value="jobs">
     <div class="filter-group">
       <label>Date</label>
       <input type="date" name="date" value="{{ date_filter }}">
@@ -58,6 +165,7 @@
     <table class="ops-table">
       <thead>
         <tr>
+          <th>Date</th>
           <th>Time</th>
           <th>Customer</th>
           <th>Address</th>
@@ -70,8 +178,12 @@
       <tbody>
         {% for job in jobs %}
         <tr class="job-row-{{ job.status }}">
+          <td style="white-space:nowrap; color:var(--muted); font-size:13px;">{{ job.scheduled_date|date:"M j" }}</td>
           <td class="td-time">{{ job.scheduled_time|time:"g:i A" }}</td>
-          <td class="td-customer">{{ job.customer }}</td>
+          <td class="td-customer">
+            {{ job.customer }}
+            {% if job.county %}<div style="font-size:11px;color:var(--muted);">{{ job.county }} Co.</div>{% endif %}
+          </td>
           <td class="td-address">{{ job.address }}</td>
           <td><span class="badge badge-device">{{ job.device_type }}{% if job.device_size %} · {{ job.device_size }}{% endif %}</span></td>
           <td>
@@ -105,5 +217,6 @@
   </div>
   {% endif %}
 
+  {% endif %}
 </div>
 {% endblock %}

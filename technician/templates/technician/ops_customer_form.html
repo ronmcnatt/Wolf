@@ -1,0 +1,185 @@
+{% extends "technician/base.html" %}
+
+{% block title %}{% if customer %}Edit Customer{% else %}New Customer{% endif %} — Wolf Backflow{% endblock %}
+
+{% block content %}
+<div class="tech-page">
+
+  <a href="/tech/ops/?tab=customers" class="back-link">← Back to Customers</a>
+
+  <div class="tech-page-header">
+    <div>
+      <h1>{% if customer %}{{ customer.business_name }}{% else %}New Customer{% endif %}</h1>
+      <p>{% if customer %}Edit customer details and view service history{% else %}Add a new customer account{% endif %}</p>
+    </div>
+    {% if customer %}
+    <a href="{% url 'ops_job_new' %}?customer={{ customer.id }}" class="btn btn-primary">+ New Job</a>
+    {% endif %}
+  </div>
+
+  <div style="display:grid; grid-template-columns:{% if customer %}1fr 1fr{% else %}1fr{% endif %}; gap:20px; align-items:start;">
+
+    <!-- CUSTOMER FORM -->
+    <div>
+      {% if error %}
+      <div style="background:#fee2e2;color:#b91c1c;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;">{{ error }}</div>
+      {% endif %}
+
+      <form method="POST">
+        {% csrf_token %}
+        <div class="card" style="margin-bottom:16px;">
+          <h3>Business Information</h3>
+          <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+            <div class="form-group span-2">
+              <label>Business Name <span style="color:var(--danger)">*</span></label>
+              <input type="text" name="business_name" value="{{ customer.business_name|default:'' }}" required placeholder="e.g. Riverside Auto Wash">
+            </div>
+            <div class="form-group">
+              <label>Contact Name</label>
+              <input type="text" name="contact_name" value="{{ customer.contact_name|default:'' }}" placeholder="John Smith">
+            </div>
+            <div class="form-group">
+              <label>Phone</label>
+              <input type="tel" name="phone" value="{{ customer.phone|default:'' }}" placeholder="(904) 555-0100">
+            </div>
+            <div class="form-group span-2">
+              <label>Email</label>
+              <input type="email" name="email" value="{{ customer.email|default:'' }}" placeholder="contact@business.com">
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
+          <h3>Address</h3>
+          <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+            <div class="form-group span-2">
+              <label>Street Address</label>
+              <input type="text" name="address" value="{{ customer.address|default:'' }}" placeholder="123 Main St">
+            </div>
+            <div class="form-group">
+              <label>City</label>
+              <input type="text" name="city" value="{{ customer.city|default:'' }}" placeholder="Jacksonville">
+            </div>
+            <div class="form-group">
+              <label>Zip Code</label>
+              <input type="text" name="zip_code" value="{{ customer.zip_code|default:'' }}" placeholder="32204">
+            </div>
+            <div class="form-group">
+              <label>State</label>
+              <select name="state" id="state-sel" onchange="updateCounties(this.value)">
+                {% for code, name in US_STATES %}
+                <option value="{{ code }}" {% if customer.state == code or not customer and code == 'FL' %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>County</label>
+              <select name="county" id="county-sel" data-current="{{ customer.county|default:'' }}">
+                <option value="">— Select county —</option>
+                {% for county in FL_COUNTIES %}
+                <option value="{{ county }}" {% if customer.county == county %}selected{% endif %}>{{ county }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px;">
+          <h3>Notes</h3>
+          <div class="form-group">
+            <textarea name="notes" placeholder="Any notes about this customer…">{{ customer.notes|default:'' }}</textarea>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:12px; justify-content:flex-end;">
+          <a href="/tech/ops/?tab=customers" class="btn btn-outline">Cancel</a>
+          <button type="submit" class="btn btn-primary">{% if customer %}Save Changes{% else %}Create Customer{% endif %}</button>
+        </div>
+      </form>
+    </div>
+
+    {% if customer %}
+    <!-- JOB & TEST HISTORY -->
+    <div>
+      <div class="card">
+        <h3>Service History</h3>
+        {% if job_history %}
+        <div class="ops-table-wrap" style="margin-top:12px;">
+          <table class="ops-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Device</th>
+                <th>Technician</th>
+                <th>Status</th>
+                <th>Result</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for job in job_history %}
+              {% with result=job.test_results.all.0 %}
+              <tr>
+                <td style="white-space:nowrap;">{{ job.scheduled_date|date:"M j, Y" }}</td>
+                <td>
+                  <span class="badge badge-device">{{ job.device_type }}{% if job.device_size %} · {{ job.device_size }}{% endif %}</span>
+                  {% if job.serial %}<div style="font-size:11px;color:var(--muted);margin-top:2px;">S/N: {{ job.serial }}</div>{% endif %}
+                </td>
+                <td style="font-size:13px;">{{ job.assigned_to.get_full_name|default:"—" }}</td>
+                <td>
+                  <span class="badge badge-{{ job.status }}">
+                    {% if job.status == 'completed' %}✓ Done
+                    {% elif job.status == 'in_progress' %}● Active
+                    {% elif job.status == 'cancelled' %}✕ Cancelled
+                    {% else %}○ Pending{% endif %}
+                  </span>
+                </td>
+                <td>
+                  {% if result %}
+                    {% if result.overall_result == 'pass' %}
+                    <span class="badge status-completed">Pass</span>
+                    {% else %}
+                    <span class="badge status-cancelled">Fail</span>
+                    {% endif %}
+                  {% elif job.status == 'completed' %}
+                  <span style="color:var(--muted);font-size:12px;">No record</span>
+                  {% else %}
+                  <span style="color:var(--muted);font-size:12px;">—</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endwith %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div style="text-align:center; padding:32px 0; color:var(--muted);">
+          <div style="font-size:36px; margin-bottom:12px;">📋</div>
+          <p>No service history yet.</p>
+          <a href="{% url 'ops_job_new' %}?customer={{ customer.id }}" class="btn btn-outline btn-sm" style="margin-top:12px;">Schedule First Job</a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+
+<script>
+  const FL_COUNTIES = {{ FL_COUNTIES|safe }};
+  function updateCounties(state) {
+    const sel = document.getElementById('county-sel');
+    const cur = sel.dataset.current || sel.value;
+    sel.innerHTML = '<option value="">— Select county —</option>';
+    if (state === 'FL') {
+      FL_COUNTIES.forEach(c => {
+        const o = document.createElement('option');
+        o.value = c; o.text = c;
+        if (c === cur) o.selected = true;
+        sel.appendChild(o);
+      });
+    }
+  }
+</script>
+{% endblock %}
