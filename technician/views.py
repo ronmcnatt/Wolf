@@ -255,6 +255,8 @@ def ops_job_form(request, job_id=None):
         'phone': c.phone, 'email': c.email, 'address': c.address,
         'city': c.city, 'state': c.state, 'county': c.county,
         'zip_code': c.zip_code, 'notes': c.notes,
+        'lat': c.lat, 'lng': c.lng,
+        'device_lat': c.device_lat, 'device_lng': c.device_lng,
     } for c in customers])
 
     if request.method == 'POST':
@@ -337,6 +339,15 @@ def ops_customer_form(request, customer_id=None):
             customer.county        = p.get('county', '').strip()
             customer.zip_code      = p.get('zip_code', '').strip()
             customer.notes         = p.get('notes', '').strip()
+
+            def _pflt(f):
+                try: return float(p[f]) if p.get(f) else None
+                except ValueError: return None
+
+            customer.lat        = _pflt('lat')
+            customer.lng        = _pflt('lng')
+            customer.device_lat = _pflt('device_lat')
+            customer.device_lng = _pflt('device_lng')
             customer.save()
             return redirect('/tech/ops/?tab=customers')
 
@@ -377,6 +388,15 @@ def customer_save(request, customer_id=None):
     customer.county = data.get('county', '').strip()
     customer.zip_code = data.get('zip_code', '').strip()
     customer.notes = data.get('notes', '').strip()
+
+    def _flt(key):
+        try: return float(data[key]) if data.get(key) is not None else None
+        except (ValueError, TypeError): return None
+
+    customer.lat = _flt('lat')
+    customer.lng = _flt('lng')
+    customer.device_lat = _flt('device_lat')
+    customer.device_lng = _flt('device_lng')
     customer.save()
 
     return JsonResponse({'ok': True, 'customer': {
@@ -386,7 +406,140 @@ def customer_save(request, customer_id=None):
         'city': customer.city, 'state': customer.state,
         'county': customer.county, 'zip_code': customer.zip_code,
         'notes': customer.notes,
+        'lat': customer.lat, 'lng': customer.lng,
+        'device_lat': customer.device_lat, 'device_lng': customer.device_lng,
     }})
+
+
+# ── Temporary: seed historical job/test data on Render ────────────────────────
+
+def seed_history(request):
+    import decimal
+    import datetime as dt
+    from django.contrib.auth.models import User
+
+    TECH_MAP = {
+        'technician': User.objects.filter(username='technician').first(),
+        'mthompson':  User.objects.filter(username='mthompson').first(),
+        'rdiaz':      User.objects.filter(username='rdiaz').first(),
+    }
+
+    def _c(val):
+        return decimal.Decimal(str(val)) if val is not None else None
+
+    def _cust(name):
+        return Customer.objects.filter(business_name=name).first()
+
+    HIST = [
+        {'n': 'Riverside Auto Wash',          'tech': 'technician', 'ini': 'JS', 'd': dt.date(2025, 3, 10),  't': dt.time(8,  0), 'dt': 'RPZ',  'ds': '1"',   'dm': 'Watts',   'dmo': '009',     'ser': 'W2204-8871',  'iy': 2018, 'cv1': 'closed', 'p1': 10.2, 'cv2': 'closed', 'p2': 9.1, 'rv': 'opened_ok', 'rp': 2.1, 'lp': 82.0},
+        {'n': 'Sunshine Apartments',           'tech': 'mthompson',  'ini': 'MT', 'd': dt.date(2025, 4, 7),   't': dt.time(9, 15), 'dt': 'DCVA', 'ds': '3/4"', 'dm': 'Febco',   'dmo': '850',     'ser': 'F2019-3341',  'iy': 2019, 'cv1': 'closed', 'p1': 11.0, 'cv2': 'closed', 'p2': 9.8, 'rv': '',          'rp': None,'lp': 78.0},
+        {'n': 'Orange Park Commons HOA',       'tech': 'rdiaz',      'ini': 'RD', 'd': dt.date(2025, 4, 21),  't': dt.time(10,30), 'dt': 'RPZ',  'ds': '2"',   'dm': 'Wilkins', 'dmo': '975XL',   'ser': 'WK2021-6612', 'iy': 2021, 'cv1': 'closed', 'p1': 10.8, 'cv2': 'closed', 'p2': 9.3, 'rv': 'opened_ok', 'rp': 2.3, 'lp': 85.0},
+        {'n': 'Fleming Island Medical Center', 'tech': 'technician', 'ini': 'JS', 'd': dt.date(2025, 5, 15),  't': dt.time(11,45), 'dt': 'RPZ',  'ds': '1.5"', 'dm': 'Ames',    'dmo': '4000SS',  'ser': 'A2022-1197',  'iy': 2022, 'cv1': 'closed', 'p1': 11.2, 'cv2': 'closed', 'p2': 9.7, 'rv': 'opened_ok', 'rp': 2.0, 'lp': 80.0},
+        {'n': 'St. Johns County Rec Center',   'tech': 'mthompson',  'ini': 'MT', 'd': dt.date(2025, 6, 9),   't': dt.time(13, 0), 'dt': 'PVB',  'ds': '1"',   'dm': 'Watts',   'dmo': '800M4',   'ser': 'W2020-5589',  'iy': 2020, 'cv1': 'closed', 'p1': 10.5, 'cv2': '',       'p2': None,'rv': 'opened_ok', 'rp': 1.8, 'lp': 76.0},
+        {'n': 'Ponte Vedra Beach Club',        'tech': 'rdiaz',      'ini': 'RD', 'd': dt.date(2025, 7, 22),  't': dt.time(14, 0), 'dt': 'DCVA', 'ds': '1"',   'dm': 'Febco',   'dmo': '860',     'ser': 'F2023-8823',  'iy': 2023, 'cv1': 'closed', 'p1': 10.9, 'cv2': 'closed', 'p2': 9.5, 'rv': '',          'rp': None,'lp': 88.0},
+        {'n': 'Atlantic Beach City Hall',      'tech': 'technician', 'ini': 'JS', 'd': dt.date(2025, 8, 11),  't': dt.time(9,  0), 'dt': 'RPZ',  'ds': '1"',   'dm': 'Watts',   'dmo': '909',     'ser': 'W2021-2214',  'iy': 2021, 'cv1': 'closed', 'p1': 10.3, 'cv2': 'closed', 'p2': 9.0, 'rv': 'opened_ok', 'rp': 2.2, 'lp': 81.0},
+        {'n': 'Neptune Beach HOA',             'tech': 'mthompson',  'ini': 'MT', 'd': dt.date(2025, 9, 18),  't': dt.time(10, 0), 'dt': 'PVB',  'ds': '3/4"', 'dm': 'Wilkins', 'dmo': '720A',    'ser': 'WK2019-9901', 'iy': 2019, 'cv1': 'closed', 'p1': 10.7, 'cv2': '',       'p2': None,'rv': 'opened_ok', 'rp': 1.9, 'lp': 77.0},
+        {'n': 'Mandarin Presbyterian Church',  'tech': 'rdiaz',      'ini': 'RD', 'd': dt.date(2025, 10, 6),  't': dt.time(11, 0), 'dt': 'DCVA', 'ds': '3/4"', 'dm': 'Ames',    'dmo': '2000SS',  'ser': 'A2020-7743',  'iy': 2020, 'cv1': 'closed', 'p1': 11.1, 'cv2': 'closed', 'p2': 9.4, 'rv': '',          'rp': None,'lp': 79.0},
+        {'n': 'Baymeadows Plaza',              'tech': 'technician', 'ini': 'JS', 'd': dt.date(2025, 11, 14), 't': dt.time(8, 30), 'dt': 'RPZ',  'ds': '2"',   'dm': 'Febco',   'dmo': '880V',    'ser': 'F2022-4456',  'iy': 2022, 'cv1': 'closed', 'p1': 10.6, 'cv2': 'closed', 'p2': 9.2, 'rv': 'opened_ok', 'rp': 2.4, 'lp': 84.0},
+        {'n': 'Riverside Auto Wash',          'tech': 'technician', 'ini': 'JS', 'd': dt.date(2026, 1, 13),  't': dt.time(8,  0), 'dt': 'RPZ',  'ds': '1"',   'dm': 'Watts',   'dmo': '009',     'ser': 'W2204-8871',  'iy': 2018, 'cv1': 'closed', 'p1': 10.4, 'cv2': 'closed', 'p2': 9.0, 'rv': 'opened_ok', 'rp': 2.2, 'lp': 83.0},
+        {'n': 'Fleming Island Medical Center', 'tech': 'technician', 'ini': 'JS', 'd': dt.date(2026, 2, 10),  't': dt.time(11,45), 'dt': 'RPZ',  'ds': '1.5"', 'dm': 'Ames',    'dmo': '4000SS',  'ser': 'A2022-1197',  'iy': 2022, 'cv1': 'closed', 'p1': 11.0, 'cv2': 'closed', 'p2': 9.6, 'rv': 'opened_ok', 'rp': 2.1, 'lp': 80.0},
+        {'n': 'Atlantic Beach City Hall',      'tech': 'technician', 'ini': 'JS', 'd': dt.date(2026, 3, 17),  't': dt.time(9,  0), 'dt': 'RPZ',  'ds': '1"',   'dm': 'Watts',   'dmo': '909',     'ser': 'W2021-2214',  'iy': 2021, 'cv1': 'closed', 'p1': 10.8, 'cv2': 'closed', 'p2': 9.3, 'rv': 'opened_ok', 'rp': 2.3, 'lp': 82.0},
+    ]
+
+    PENDING = [
+        {'n': 'Sunshine Apartments',          'd': dt.date(2026, 5, 5),  't': dt.time(9, 15), 'dt': 'DCVA', 'ds': '3/4"', 'dm': 'Febco',   'dmo': '850',    'ser': 'F2019-3341'},
+        {'n': 'Orange Park Commons HOA',      'd': dt.date(2026, 5, 8),  't': dt.time(10,30), 'dt': 'RPZ',  'ds': '2"',   'dm': 'Wilkins', 'dmo': '975XL',  'ser': 'WK2021-6612'},
+        {'n': 'St. Johns County Rec Center',  'd': dt.date(2026, 5, 12), 't': dt.time(13, 0), 'dt': 'PVB',  'ds': '1"',   'dm': 'Watts',   'dmo': '800M4',  'ser': 'W2020-5589'},
+        {'n': 'Ponte Vedra Beach Club',       'd': dt.date(2026, 5, 15), 't': dt.time(14, 0), 'dt': 'DCVA', 'ds': '1"',   'dm': 'Febco',   'dmo': '860',    'ser': 'F2023-8823'},
+        {'n': 'Neptune Beach HOA',            'd': dt.date(2026, 5, 19), 't': dt.time(10, 0), 'dt': 'PVB',  'ds': '3/4"', 'dm': 'Wilkins', 'dmo': '720A',   'ser': 'WK2019-9901'},
+        {'n': 'Mandarin Presbyterian Church', 'd': dt.date(2026, 5, 27), 't': dt.time(11, 0), 'dt': 'DCVA', 'ds': '3/4"', 'dm': 'Ames',    'dmo': '2000SS', 'ser': 'A2020-7743'},
+        {'n': 'Baymeadows Plaza',             'd': dt.date(2026, 6, 3),  't': dt.time(8, 30), 'dt': 'RPZ',  'ds': '2"',   'dm': 'Febco',   'dmo': '880V',   'ser': 'F2022-4456'},
+    ]
+
+    created_jobs = 0
+    created_results = 0
+
+    # Historical + 2026 completed
+    if not Job.objects.filter(scheduled_date__year=2025).exists() or \
+       not Job.objects.filter(scheduled_date__year=2026, status='completed').exists():
+        for j in HIST:
+            cust = _cust(j['n'])
+            tech = TECH_MAP.get(j['tech'])
+            job = Job.objects.create(
+                customer_ref=cust,
+                customer=j['n'],
+                address=cust.address if cust else '',
+                contact=cust.contact_name if cust else '',
+                phone=cust.phone if cust else '',
+                state='FL', county=cust.county if cust else '',
+                scheduled_date=j['d'], scheduled_time=j['t'],
+                status='completed', assigned_to=tech,
+                device_type=j['dt'], device_size=j['ds'],
+                device_make=j['dm'], device_model=j['dmo'], serial=j['ser'],
+                lat=cust.lat if cust else None, lng=cust.lng if cust else None,
+                device_lat=cust.device_lat if cust else None, device_lng=cust.device_lng if cust else None,
+            )
+            TestResult.objects.create(
+                job=job, customer=j['n'], address=job.address,
+                device_type=j['dt'], device_size=j['ds'],
+                manufacturer=j['dm'], model=j['dmo'], serial=j['ser'],
+                install_year=j['iy'], test_date=j['d'], test_time=j['t'],
+                cv1_result=j['cv1'], cv1_psi=_c(j['p1']),
+                cv2_result=j['cv2'], cv2_psi=_c(j['p2']),
+                rv_result=j['rv'], rv_psi=_c(j['rp']),
+                line_psi=_c(j['lp']),
+                overall_result='pass', technician_initials=j['ini'], submitted_by=tech,
+            )
+            created_jobs += 1
+            created_results += 1
+
+    # Unassigned pending
+    if not Job.objects.filter(scheduled_date__year=2026, assigned_to__isnull=True).exists():
+        for j in PENDING:
+            cust = _cust(j['n'])
+            Job.objects.create(
+                customer_ref=cust,
+                customer=j['n'],
+                address=cust.address if cust else '',
+                contact=cust.contact_name if cust else '',
+                phone=cust.phone if cust else '',
+                state='FL', county=cust.county if cust else '',
+                scheduled_date=j['d'], scheduled_time=j['t'],
+                status='pending', assigned_to=None,
+                device_type=j['dt'], device_size=j['ds'],
+                device_make=j['dm'], device_model=j['dmo'], serial=j['ser'],
+                lat=cust.lat if cust else None, lng=cust.lng if cust else None,
+                device_lat=cust.device_lat if cust else None, device_lng=cust.device_lng if cust else None,
+            )
+            created_jobs += 1
+
+    return JsonResponse({'ok': True, 'jobs_created': created_jobs, 'results_created': created_results})
+
+
+# ── Temporary: reseed customer coordinates ────────────────────────────────────
+
+def reseed_customer_coords(request):
+    COORDS = {
+        'Riverside Auto Wash':          {'lat': 30.3149,  'lng': -81.6693,  'device_lat': 30.31498,  'device_lng': -81.66915},
+        'Sunshine Apartments':           {'lat': 30.3220,  'lng': -81.6580,  'device_lat': 30.32208,  'device_lng': -81.65785},
+        'Orange Park Commons HOA':       {'lat': 30.1654,  'lng': -81.7065,  'device_lat': 30.16550,  'device_lng': -81.70635},
+        'Fleming Island Medical Center': {'lat': 30.1010,  'lng': -81.7143,  'device_lat': 30.10108,  'device_lng': -81.71415},
+        'St. Johns County Rec Center':   {'lat': 30.1580,  'lng': -81.6043,  'device_lat': 30.15808,  'device_lng': -81.60415},
+        'Ponte Vedra Beach Club':        {'lat': 30.2394,  'lng': -81.3883,  'device_lat': 30.23948,  'device_lng': -81.38815},
+        'Atlantic Beach City Hall':      {'lat': 30.3371,  'lng': -81.3996,  'device_lat': 30.33718,  'device_lng': -81.39945},
+        'Neptune Beach HOA':             {'lat': 30.3127,  'lng': -81.4027,  'device_lat': 30.31278,  'device_lng': -81.40255},
+        'Mandarin Presbyterian Church':  {'lat': 30.1580,  'lng': -81.6243,  'device_lat': 30.15808,  'device_lng': -81.62415},
+        'Baymeadows Plaza':              {'lat': 30.2347,  'lng': -81.5513,  'device_lat': 30.23478,  'device_lng': -81.55115},
+    }
+    updated = []
+    for name, coords in COORDS.items():
+        c = Customer.objects.filter(business_name=name).first()
+        if c:
+            for k, v in coords.items():
+                setattr(c, k, v)
+            c.save()
+            updated.append(name)
+    return JsonResponse({'ok': True, 'updated': updated})
 
 
 # ── Admin views ───────────────────────────────────────────────────────────────

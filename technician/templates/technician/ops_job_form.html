@@ -345,12 +345,43 @@
     document.getElementById('field-customer').value = c.business_name;
     document.getElementById('field-contact').value  = c.contact_name || '';
     document.getElementById('field-phone').value    = c.phone || '';
+
+    // Build address string from customer record
+    let addrParts = [c.address];
+    if (c.city) addrParts.push(c.city);
+    if (c.state) addrParts.push(c.state);
+    if (c.zip_code) addrParts.push(c.zip_code);
+    document.getElementById('address-input').value = addrParts.filter(Boolean).join(', ');
+
+    // Sync state/county dropdowns
+    const stateSel = document.getElementById('state-select');
+    stateSel.value = c.state || 'FL';
+    updateCounties(stateSel.value);
+    if (c.county) document.getElementById('county-select').value = c.county;
+
+    // Move maps if coordinates are available
+    if (c.lat && c.lng) {
+      const propLatLng = [c.lat, c.lng];
+      propMarker.setLatLng(propLatLng);
+      propMap.setView(propLatLng, 17);
+      document.getElementById('lat').value = c.lat;
+      document.getElementById('lng').value = c.lng;
+
+      const devLat = c.device_lat || c.lat;
+      const devLng = c.device_lng || c.lng;
+      const devLatLng = [devLat, devLng];
+      devMarker.setLatLng(devLatLng);
+      devMap.setView(devLatLng, 19);
+      document.getElementById('device_lat').value = devLat;
+      document.getElementById('device_lng').value = devLng;
+    }
   }
 
   function clearCustomerFields() {
     document.getElementById('field-customer').value = '';
     document.getElementById('field-contact').value  = '';
     document.getElementById('field-phone').value    = '';
+    document.getElementById('address-input').value  = '';
   }
 
   // ── Customer modal ────────────────────────────────────────────────────────

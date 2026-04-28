@@ -2,6 +2,11 @@
 
 {% block title %}{% if customer %}Edit Customer{% else %}New Customer{% endif %} — Wolf Backflow{% endblock %}
 
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="tech-page">
 
@@ -84,10 +89,30 @@
           </div>
         </div>
 
-        <div class="card" style="margin-bottom:20px;">
+        <div class="card" style="margin-bottom:16px;">
           <h3>Notes</h3>
           <div class="form-group">
             <textarea name="notes" placeholder="Any notes about this customer…">{{ customer.notes|default:'' }}</textarea>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px;">
+          <h3>Location Maps</h3>
+          <p style="font-size:12px; color:var(--muted); margin-bottom:16px;">
+            Drag the markers to set property and device coordinates. These pre-fill maps when scheduling a job for this customer.
+          </p>
+          <div class="map-block" style="margin-bottom:16px;">
+            <h4>Property Location</h4>
+            <div class="map-container" id="property-map" style="height:220px;"></div>
+            <input type="hidden" name="lat" id="c-lat" value="{{ customer.lat|default:'' }}">
+            <input type="hidden" name="lng" id="c-lng" value="{{ customer.lng|default:'' }}">
+          </div>
+          <div class="map-block">
+            <h4>Backflow Device Location</h4>
+            <div class="map-container" id="device-map" style="height:220px;"></div>
+            <input type="hidden" name="device_lat" id="c-device-lat" value="{{ customer.device_lat|default:'' }}">
+            <input type="hidden" name="device_lng" id="c-device-lng" value="{{ customer.device_lng|default:'' }}">
+            <p style="font-size:11px; color:var(--muted); margin-top:8px;">Click the map to place the device marker.</p>
           </div>
         </div>
 
@@ -181,5 +206,41 @@
       });
     }
   }
+
+  // ── Maps ────────────────────────────────────────────────────────────────────
+  const C_LAT = parseFloat('{{ customer.lat|default:"30.3322" }}') || 30.3322;
+  const C_LNG = parseFloat('{{ customer.lng|default:"-81.6557" }}') || -81.6557;
+  const C_DLAT = parseFloat('{{ customer.device_lat|default:"30.3322" }}') || 30.3322;
+  const C_DLNG = parseFloat('{{ customer.device_lng|default:"-81.6557" }}') || -81.6557;
+
+  const tiles = () => L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors', maxZoom: 20
+  });
+
+  const propMap = L.map('property-map').setView([C_LAT, C_LNG], 15);
+  tiles().addTo(propMap);
+  let propMarker = L.marker([C_LAT, C_LNG], { draggable: true }).addTo(propMap);
+  propMarker.on('dragend', e => {
+    document.getElementById('c-lat').value = e.target.getLatLng().lat.toFixed(6);
+    document.getElementById('c-lng').value = e.target.getLatLng().lng.toFixed(6);
+  });
+
+  const devIcon = L.divIcon({
+    className: '',
+    html: '<div style="background:#00A8A8;color:white;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.3)">🔧 Device</div>',
+    iconAnchor: [36, 24]
+  });
+  const devMap = L.map('device-map').setView([C_DLAT, C_DLNG], 18);
+  tiles().addTo(devMap);
+  let devMarker = L.marker([C_DLAT, C_DLNG], { icon: devIcon, draggable: true }).addTo(devMap);
+  devMarker.on('dragend', e => {
+    document.getElementById('c-device-lat').value = e.target.getLatLng().lat.toFixed(6);
+    document.getElementById('c-device-lng').value = e.target.getLatLng().lng.toFixed(6);
+  });
+  devMap.on('click', e => {
+    devMarker.setLatLng(e.latlng);
+    document.getElementById('c-device-lat').value = e.latlng.lat.toFixed(6);
+    document.getElementById('c-device-lng').value = e.latlng.lng.toFixed(6);
+  });
 </script>
 {% endblock %}
