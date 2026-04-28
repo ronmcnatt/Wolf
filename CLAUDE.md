@@ -32,6 +32,7 @@ python manage.py runserver
 - Internal portal login: http://localhost:8000/tech/login/
 - Tech dashboard: http://localhost:8000/tech/dashboard/
 - Ops dashboard: http://localhost:8000/tech/ops/
+- Admin dashboard: http://localhost:8000/tech/admin/users/
 
 ## POC Users
 
@@ -42,7 +43,7 @@ python manage.py runserver
 | Manager    | `manager`    | `mgr123`   | Job management dashboard               |
 | Admin      | `admin`      | `admin123` | User management (all users + roles)    |
 
-Users and today's sample jobs are seeded automatically on deploy via `create_demo_users` management command.
+Demo users are seeded automatically on startup via `TechnicianConfig.ready()` in `technician/apps.py` (gated by `DJANGO_SEED_ON_READY=1` env var). Passwords are always reset on each startup so credentials never drift.
 To re-seed locally: `python manage.py create_demo_users`
 
 ## Data Models
@@ -88,11 +89,12 @@ Login redirects automatically based on role. Unauthorized role access redirects 
 
 ## Deployment
 - Platform: Render — https://wolf-9bbc.onrender.com
-- Build: `pip install -r requirements.txt && python manage.py collectstatic --no-input && python manage.py migrate && python manage.py create_demo_users`
-- Start: `gunicorn wolf_backflow.wsgi:application`
-- Env vars required: `SECRET_KEY`, `DATABASE_URL` (Supabase pooler URI, port 6543), `DEBUG=False`
+- Build: `pip install -r requirements.txt && python manage.py collectstatic --no-input && python manage.py migrate`
+- Start: `DJANGO_SEED_ON_READY=1 gunicorn wolf_backflow.wsgi:application`
+- Env vars required: `SECRET_KEY`, `DATABASE_URL` (Supabase pooler URI, port 6543), `DEBUG=False`, `DJANGO_SEED_ON_READY=1`
 - Supabase connection: use pooler URI (not direct port 5432 — Render free tier blocks it)
 - Strip `?pgbouncer=true` from Supabase ORM connection string before setting `DATABASE_URL`
+- Note: `create_demo_users` management command was removed from the build step because Render's build phase cannot write to Supabase; seeding now runs inside the gunicorn process via `AppConfig.ready()`
 
 ## Next Priorities (as of April 2026)
 - [ ] Manager-specific reporting views (test results summary, technician performance)
