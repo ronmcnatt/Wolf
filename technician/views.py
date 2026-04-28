@@ -1,9 +1,42 @@
+import json
 from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 from functools import wraps
-from .models import UserProfile, Job, TestResult
+from .models import UserProfile, Job, TestResult, Customer
+
+FL_COUNTIES = [
+    'Alachua','Baker','Bay','Bradford','Brevard','Broward','Calhoun',
+    'Charlotte','Citrus','Clay','Collier','Columbia','DeSoto','Dixie',
+    'Duval','Escambia','Flagler','Franklin','Gadsden','Gilchrist',
+    'Glades','Gulf','Hamilton','Hardee','Hendry','Hernando','Highlands',
+    'Hillsborough','Holmes','Indian River','Jackson','Jefferson',
+    'Lafayette','Lake','Lee','Leon','Levy','Liberty','Madison',
+    'Manatee','Marion','Martin','Miami-Dade','Monroe','Nassau',
+    'Okaloosa','Okeechobee','Orange','Osceola','Palm Beach','Pasco',
+    'Pinellas','Polk','Putnam','Santa Rosa','Sarasota','Seminole',
+    'St. Johns','St. Lucie','Sumter','Suwannee','Taylor','Union',
+    'Volusia','Wakulla','Walton','Washington',
+]
+
+US_STATES = [
+    ('AL','Alabama'),('AK','Alaska'),('AZ','Arizona'),('AR','Arkansas'),
+    ('CA','California'),('CO','Colorado'),('CT','Connecticut'),('DE','Delaware'),
+    ('FL','Florida'),('GA','Georgia'),('HI','Hawaii'),('ID','Idaho'),
+    ('IL','Illinois'),('IN','Indiana'),('IA','Iowa'),('KS','Kansas'),
+    ('KY','Kentucky'),('LA','Louisiana'),('ME','Maine'),('MD','Maryland'),
+    ('MA','Massachusetts'),('MI','Michigan'),('MN','Minnesota'),('MS','Mississippi'),
+    ('MO','Missouri'),('MT','Montana'),('NE','Nebraska'),('NV','Nevada'),
+    ('NH','New Hampshire'),('NJ','New Jersey'),('NM','New Mexico'),('NY','New York'),
+    ('NC','North Carolina'),('ND','North Dakota'),('OH','Ohio'),('OK','Oklahoma'),
+    ('OR','Oregon'),('PA','Pennsylvania'),('RI','Rhode Island'),('SC','South Carolina'),
+    ('SD','South Dakota'),('TN','Tennessee'),('TX','Texas'),('UT','Utah'),
+    ('VT','Vermont'),('VA','Virginia'),('WA','Washington'),('WV','West Virginia'),
+    ('WI','Wisconsin'),('WY','Wyoming'),('DC','District of Columbia'),
+]
 
 
 # ── Role-based access decorators ──────────────────────────────────────────────
@@ -192,6 +225,13 @@ def ops_dashboard(request):
 def ops_job_form(request, job_id=None):
     job = get_object_or_404(Job, pk=job_id) if job_id else None
     technicians = User.objects.filter(profile__role='technician').order_by('first_name')
+    customers = Customer.objects.all()
+    customers_json = json.dumps([{
+        'id': c.id, 'business_name': c.business_name, 'contact_name': c.contact_name,
+        'phone': c.phone, 'email': c.email, 'address': c.address,
+        'city': c.city, 'state': c.state, 'county': c.county,
+        'zip_code': c.zip_code, 'notes': c.notes,
+    } for c in customers])
 
     if request.method == 'POST':
         p = request.POST
@@ -202,12 +242,17 @@ def ops_job_form(request, job_id=None):
 
         assigned_id = p.get('assigned_to')
         assigned = User.objects.filter(pk=assigned_id).first() if assigned_id else None
+        customer_ref_id = p.get('customer_ref') or None
+        customer_ref = Customer.objects.filter(pk=customer_ref_id).first() if customer_ref_id else None
 
         data = dict(
+            customer_ref=customer_ref,
             customer=p.get('customer', ''),
             address=p.get('address', ''),
             contact=p.get('contact', ''),
             phone=p.get('phone', ''),
+            state=p.get('state', 'FL'),
+            county=p.get('county', ''),
             scheduled_date=p.get('scheduled_date'),
             scheduled_time=p.get('scheduled_time'),
             status=p.get('status', 'pending'),
@@ -218,10 +263,8 @@ def ops_job_form(request, job_id=None):
             device_model=p.get('device_model', ''),
             serial=p.get('serial', ''),
             device_notes=p.get('device_notes', ''),
-            lat=flt('lat'),
-            lng=flt('lng'),
-            device_lat=flt('device_lat'),
-            device_lng=flt('device_lng'),
+            lat=flt('lat'), lng=flt('lng'),
+            device_lat=flt('device_lat'), device_lng=flt('device_lng'),
             notes=p.get('notes', ''),
         )
 
@@ -237,9 +280,47 @@ def ops_job_form(request, job_id=None):
     return render(request, 'technician/ops_job_form.html', {
         'job': job,
         'technicians': technicians,
+        'customers': customers,
+        'customers_json': customers_json,
         'DEVICE_TYPES': Job.DEVICE_TYPES,
         'STATUS_CHOICES': Job.STATUS_CHOICES,
+        'US_STATES': US_STATES,
+        'FL_COUNTIES': FL_COUNTIES,
     })
+
+
+@role_required('operations', 'manager')
+def customer_save(request, customer_id=None):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+    customer = get_object_or_404(Customer, pk=customer_id) if customer_id else Customer()
+    customer.business_name = data.get('business_name', '').strip()
+    if not customer.business_name:
+        return JsonResponse({'error': 'Business name is required'}, status=400)
+    customer.contact_name = data.get('contact_name', '').strip()
+    customer.phone = data.get('phone', '').strip()
+    customer.email = data.get('email', '').strip()
+    customer.address = data.get('address', '').strip()
+    customer.city = data.get('city', '').strip()
+    customer.state = data.get('state', 'FL').strip()
+    customer.county = data.get('county', '').strip()
+    customer.zip_code = data.get('zip_code', '').strip()
+    customer.notes = data.get('notes', '').strip()
+    customer.save()
+
+    return JsonResponse({'ok': True, 'customer': {
+        'id': customer.id, 'business_name': customer.business_name,
+        'contact_name': customer.contact_name, 'phone': customer.phone,
+        'email': customer.email, 'address': customer.address,
+        'city': customer.city, 'state': customer.state,
+        'county': customer.county, 'zip_code': customer.zip_code,
+        'notes': customer.notes,
+    }})
 
 
 # ── Admin views ───────────────────────────────────────────────────────────────

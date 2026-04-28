@@ -54,9 +54,13 @@ To re-seed locally: `python manage.py create_demo_users`.  Change this behavior 
 ### UserProfile (technician/models.py)
 Links Django's built-in `User` to a role. Roles: `technician`, `operations`, `manager`, `admin`, `customer`.
 
+### Customer (technician/models.py)
+Stores reusable customer/account records. Fields: business name, contact name, phone, email, billing address, city, state, county, zip. Operations and Manager roles can create and edit. 10 sample customers seeded on startup matching the demo jobs.
+
 ### Job (technician/models.py)
 Stores all job/site information. Fields cover:
-- Customer, address, contact, phone
+- customer_ref (optional FK to Customer), customer name (text), address, contact, phone
+- State and county (service location jurisdiction)
 - Scheduled date and time
 - Assigned technician (ForeignKey to User)
 - Status: pending / in_progress / completed / cancelled

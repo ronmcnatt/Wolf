@@ -18,6 +18,27 @@ class UserProfile(models.Model):
         return f"{self.user.get_full_name() or self.user.username} ({self.role})"
 
 
+class Customer(models.Model):
+    business_name = models.CharField(max_length=200)
+    contact_name = models.CharField(max_length=100, blank=True)
+    phone = models.CharField(max_length=20, blank=True)
+    email = models.EmailField(blank=True)
+    address = models.CharField(max_length=300, blank=True)
+    city = models.CharField(max_length=100, blank=True)
+    state = models.CharField(max_length=2, default='FL')
+    county = models.CharField(max_length=100, blank=True)
+    zip_code = models.CharField(max_length=10, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['business_name']
+
+    def __str__(self):
+        return self.business_name
+
+
 class Job(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
@@ -33,10 +54,15 @@ class Job(models.Model):
         ('RPDA', 'RPDA — Reduced Pressure Detector'),
     ]
 
+    customer_ref = models.ForeignKey(
+        Customer, on_delete=models.SET_NULL, null=True, blank=True, related_name='jobs'
+    )
     customer = models.CharField(max_length=200)
     address = models.CharField(max_length=300)
     contact = models.CharField(max_length=100, blank=True)
     phone = models.CharField(max_length=20, blank=True)
+    state = models.CharField(max_length=2, default='FL', blank=True)
+    county = models.CharField(max_length=100, blank=True)
 
     scheduled_date = models.DateField()
     scheduled_time = models.TimeField()

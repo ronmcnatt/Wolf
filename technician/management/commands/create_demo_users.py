@@ -1,8 +1,22 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
 from django.utils import timezone
-from technician.models import UserProfile, Job
+from technician.models import UserProfile, Job, Customer
 import datetime
+
+
+SAMPLE_CUSTOMERS = [
+    {'business_name': 'Riverside Auto Wash',          'contact_name': 'Mike Johnson',      'phone': '(904) 555-0142', 'email': 'mjohnson@riversideautowash.com', 'address': '1234 Riverside Ave',    'city': 'Jacksonville',      'state': 'FL', 'county': 'Duval',     'zip_code': '32204'},
+    {'business_name': 'Sunshine Apartments',           'contact_name': 'Sandra Lee',        'phone': '(904) 555-0198', 'email': 'slee@sunshineapts.com',         'address': '567 Park St',            'city': 'Jacksonville',      'state': 'FL', 'county': 'Duval',     'zip_code': '32204'},
+    {'business_name': 'Orange Park Commons HOA',       'contact_name': 'Tom Rivera',        'phone': '(904) 555-0211', 'email': 'trivera@opcommons.org',         'address': '890 Blanding Blvd',     'city': 'Orange Park',       'state': 'FL', 'county': 'Clay',      'zip_code': '32065'},
+    {'business_name': 'Fleming Island Medical Center', 'contact_name': 'Dr. Patricia Holt', 'phone': '(904) 555-0334', 'email': 'pholt@fimedical.com',           'address': '234 Town Center Blvd',  'city': 'Fleming Island',    'state': 'FL', 'county': 'Clay',      'zip_code': '32003'},
+    {'business_name': 'St. Johns County Rec Center',   'contact_name': 'Gary Simmons',      'phone': '(904) 555-0455', 'email': 'gsimmons@stjohns.gov',          'address': '456 Race Track Rd',     'city': 'St. Johns',         'state': 'FL', 'county': 'St. Johns', 'zip_code': '32259'},
+    {'business_name': 'Ponte Vedra Beach Club',        'contact_name': 'Claire Ashford',    'phone': '(904) 555-0567', 'email': 'cashford@pvbeachclub.com',      'address': '789 A1A N',             'city': 'Ponte Vedra Beach', 'state': 'FL', 'county': 'St. Johns', 'zip_code': '32082'},
+    {'business_name': 'Atlantic Beach City Hall',      'contact_name': 'Derrick Fowler',    'phone': '(904) 555-0688', 'email': 'dfowler@atlanticbeachfl.gov',   'address': '800 Seminole Rd',       'city': 'Atlantic Beach',    'state': 'FL', 'county': 'Duval',     'zip_code': '32233'},
+    {'business_name': 'Neptune Beach HOA',             'contact_name': 'Beth Calloway',     'phone': '(904) 555-0712', 'email': 'bcalloway@neptunebeachhoa.org', 'address': '123 Neptune Ave',       'city': 'Neptune Beach',     'state': 'FL', 'county': 'Duval',     'zip_code': '32266'},
+    {'business_name': 'Mandarin Presbyterian Church',  'contact_name': 'Pastor Dale Norris','phone': '(904) 555-0834', 'email': 'dnorris@mandarinpres.org',      'address': '11946 Mandarin Rd',     'city': 'Jacksonville',      'state': 'FL', 'county': 'Duval',     'zip_code': '32223'},
+    {'business_name': 'Baymeadows Plaza',              'contact_name': 'Lisa Crane',        'phone': '(904) 555-0956', 'email': 'lcrane@baymeadowsplaza.com',    'address': '8550 Baymeadows Rd',    'city': 'Jacksonville',      'state': 'FL', 'county': 'Duval',     'zip_code': '32256'},
+]
 
 
 SAMPLE_JOBS = [
@@ -142,5 +156,13 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f'Seeded {len(SAMPLE_JOBS)} jobs for {today}'))
         else:
             self.stdout.write(f'Jobs for {today} already exist — skipping seed')
+
+        # Seed sample customers
+        for sc in SAMPLE_CUSTOMERS:
+            Customer.objects.get_or_create(
+                business_name=sc['business_name'],
+                defaults=sc,
+            )
+        self.stdout.write(self.style.SUCCESS(f'Seeded {len(SAMPLE_CUSTOMERS)} sample customers'))
 
         self.stdout.write(self.style.SUCCESS('Done.'))
