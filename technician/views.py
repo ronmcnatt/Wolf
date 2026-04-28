@@ -193,7 +193,7 @@ def ops_dashboard(request):
     tab = request.GET.get('tab', 'jobs')
 
     # ── Jobs tab ──
-    date_filter   = request.GET.get('date', str(timezone.localdate()))
+    date_filter   = request.GET.get('date', '')
     status_filter = request.GET.get('status', '')
     tech_filter   = request.GET.get('tech', '')
 
