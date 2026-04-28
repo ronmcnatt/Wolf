@@ -308,20 +308,6 @@ def admin_user_form(request, user_id=None):
     })
 
 
-def seed_customer(request):
-    from django.http import JsonResponse
-    try:
-        user, created = User.objects.get_or_create(username='customer')
-        user.set_password('cust123')
-        user.first_name = 'James'
-        user.last_name = 'Wilson'
-        user.save()
-        UserProfile.objects.get_or_create(user=user, defaults={'role': 'customer'})
-        return JsonResponse({'ok': True, 'created': created})
-    except Exception as e:
-        return JsonResponse({'ok': False, 'error': str(e)}, status=500)
-
-
 # ── Customer views ────────────────────────────────────────────────────────────
 
 @role_required('customer')
