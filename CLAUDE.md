@@ -80,6 +80,8 @@ Persists backflow test readings submitted by technicians. Fields cover:
 
 Login redirects automatically based on role. Unauthorized role access redirects to login.
 
+> **TODO — Password Persistence:** Currently `AppConfig.ready()` resets all demo passwords on every app startup, so any password changed via the Admin screen will be overwritten on the next deploy or restart. To fix: update `_seed_demo_users()` in `technician/apps.py` to only call `set_password()` when `created=True` (user is brand new), not on every run.
+
 ## Current POC Limitations (Known Tech Debt)
 1. **No multi-tenant support** — no concept of separate companies/accounts yet
 2. **No scheduling system** — jobs assigned manually by operations, no dispatch/routing optimization
