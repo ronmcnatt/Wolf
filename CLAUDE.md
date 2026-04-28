@@ -29,6 +29,7 @@ cd /Users/ronaldmcnatt/Documents/Wolf
 conda activate wolf_backflow
 python manage.py runserver
 ```
+- Public website:  https://wolf-9bbc.onrender.com/
 - Internal portal login: http://localhost:8000/tech/login/
 - Tech dashboard: http://localhost:8000/tech/dashboard/
 - Ops dashboard: http://localhost:8000/tech/ops/

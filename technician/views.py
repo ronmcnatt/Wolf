@@ -60,6 +60,26 @@ def tech_logout(request):
     return redirect('tech_login')
 
 
+def customer_login(request):
+    if request.user.is_authenticated:
+        return _redirect_by_role(request.user)
+    error = None
+    if request.method == 'POST':
+        user = authenticate(
+            request,
+            username=request.POST.get('username', ''),
+            password=request.POST.get('password', ''),
+        )
+        if user is None:
+            error = 'Invalid username or password.'
+        else:
+            if not hasattr(user, 'profile'):
+                UserProfile.objects.create(user=user, role='customer')
+            login(request, user)
+            return redirect('customer_dashboard')
+    return render(request, 'technician/customer_login.html', {'error': error})
+
+
 
 
 # ── Technician views ──────────────────────────────────────────────────────────
@@ -286,6 +306,20 @@ def admin_user_form(request, user_id=None):
         'ROLES': UserProfile.ROLES,
         'error': error,
     })
+
+
+def seed_customer(request):
+    from django.http import JsonResponse
+    try:
+        user, created = User.objects.get_or_create(username='customer')
+        user.set_password('cust123')
+        user.first_name = 'James'
+        user.last_name = 'Wilson'
+        user.save()
+        UserProfile.objects.get_or_create(user=user, defaults={'role': 'customer'})
+        return JsonResponse({'ok': True, 'created': created})
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=500)
 
 
 # ── Customer views ────────────────────────────────────────────────────────────
