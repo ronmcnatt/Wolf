@@ -13,6 +13,9 @@ class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     role = models.CharField(max_length=20, choices=ROLES, default='technician')
     phone = models.CharField(max_length=20, blank=True)
+    counties = models.JSONField(default=list, blank=True)
+    is_licensed = models.BooleanField(default=False)
+    license_expires = models.DateField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.user.get_full_name() or self.user.username} ({self.role})"

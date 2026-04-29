@@ -111,14 +111,12 @@
               <input type="time" name="scheduled_time" value="{{ job.scheduled_time|time:'H:i'|default:'' }}" required>
             </div>
             <div class="form-group">
-              <label>Assign To</label>
-              <select name="assigned_to">
+              <label>
+                Assign To
+                <span id="tech-coverage-note" style="font-size:11px; font-weight:400; color:var(--muted); margin-left:6px;"></span>
+              </label>
+              <select name="assigned_to" id="assign-to-select">
                 <option value="">— Unassigned —</option>
-                {% for tech in technicians %}
-                <option value="{{ tech.id }}" {% if job.assigned_to_id == tech.id %}selected{% endif %}>
-                  {{ tech.get_full_name|default:tech.username }}
-                </option>
-                {% endfor %}
               </select>
             </div>
             <div class="form-group">
@@ -284,7 +282,65 @@
   const CSRF = '{{ csrf_token }}';
   const CUSTOMERS = {{ customers_json|safe }};
   const FL_COUNTIES = {{ FL_COUNTIES|safe }};
+  const TECHNICIANS = {{ technicians_json|safe }};
+  const CURRENT_TECH_ID = '{{ job.assigned_to_id|default:"" }}';
   let editingCustomerId = null;
+
+  // ── Technician dropdown filtered by county ────────────────────────────────
+  function buildTechSelect(county) {
+    const sel = document.getElementById('assign-to-select');
+    const note = document.getElementById('tech-coverage-note');
+    const currentVal = sel.value || CURRENT_TECH_ID;
+
+    const today = new Date();
+    const warnCutoff = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000);
+
+    const filtered = county
+      ? TECHNICIANS.filter(t => !t.counties.length || t.counties.includes(county))
+      : TECHNICIANS;
+
+    sel.innerHTML = '<option value="">— Unassigned —</option>';
+    filtered.forEach(t => {
+      const o = document.createElement('option');
+      o.value = t.id;
+      let label = t.name;
+      if (t.license_expires) {
+        const exp = new Date(t.license_expires);
+        if (exp < today) {
+          label += '  ✗ License expired';
+          o.style.color = '#dc2626';
+        } else if (exp < warnCutoff) {
+          label += '  ⚠ Exp. ' + exp.toLocaleDateString('en-US', {month:'short', year:'numeric'});
+          o.style.color = '#d97706';
+        }
+      }
+      o.text = label;
+      if (String(t.id) === String(currentVal)) o.selected = true;
+      sel.appendChild(o);
+    });
+
+    // If the currently assigned tech is outside coverage, add with warning
+    if (currentVal && !filtered.find(t => String(t.id) === String(currentVal))) {
+      const t = TECHNICIANS.find(t => String(t.id) === String(currentVal));
+      if (t) {
+        const o = document.createElement('option');
+        o.value = t.id;
+        o.text = t.name + '  ⚠ Outside coverage area';
+        o.selected = true;
+        o.style.color = '#d97706';
+        sel.appendChild(o);
+      }
+    }
+
+    const hiddenCount = TECHNICIANS.length - filtered.length;
+    note.textContent = county && hiddenCount > 0
+      ? `(${filtered.length} cover ${county}, ${hiddenCount} hidden)`
+      : '';
+  }
+
+  document.getElementById('county-select').addEventListener('change', function() {
+    buildTechSelect(this.value);
+  });
 
   // ── County dropdowns ──────────────────────────────────────────────────────
   function updateCounties(state) {
@@ -299,6 +355,7 @@
         sel.appendChild(o);
       });
     }
+    buildTechSelect(state === 'FL' ? sel.value : '');
   }
 
   function updateModalCounties(state) {
@@ -357,7 +414,10 @@
     const stateSel = document.getElementById('state-select');
     stateSel.value = c.state || 'FL';
     updateCounties(stateSel.value);
-    if (c.county) document.getElementById('county-select').value = c.county;
+    if (c.county) {
+      document.getElementById('county-select').value = c.county;
+      buildTechSelect(c.county);
+    }
 
     // Move maps if coordinates are available
     if (c.lat && c.lng) {
@@ -491,13 +551,14 @@
     });
   }
 
-  // ── On page load: init edit button if customer already selected ───────────
+  // ── On page load: init edit button, county dropdown, and tech list ──────────
   (function() {
     const sel = document.getElementById('customer-select');
     if (sel.value) document.getElementById('edit-customer-btn').style.display = 'inline-flex';
-    // Init county dropdown for current job state
     const state = document.getElementById('state-select').value;
     if (state !== 'FL') updateCounties(state);
+    const county = document.getElementById('county-select').value;
+    buildTechSelect(county);
   })();
 
   // ── Maps ─────────────────────────────────────────────────────────────────

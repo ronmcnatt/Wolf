@@ -19,27 +19,31 @@ class TechnicianConfig(AppConfig):
                 pass
 
     def _seed_demo_users(self):
+        import datetime
         from django.contrib.auth.models import User
         from .models import UserProfile
         DEMO_USERS = [
-            ('technician', 'tech123',      'John',   'Smith',    'technician'),
-            ('operations', 'ops123',       'Sarah',  'Johnson',  'operations'),
-            ('manager',    'mgr123',       'Robert', 'Wolf',     'manager'),
-            ('admin',      'admin123',     'Admin',  'Wolf',     'admin'),
-            ('customer',   'cust123',      'James',  'Wilson',   'customer'),
-            ('mthompson',  'mthompson123', 'Marcus', 'Thompson', 'technician'),
-            ('rdiaz',      'rdiaz123',     'Rosa',   'Diaz',     'technician'),
+            # username, password, first, last, role, counties, is_licensed, license_expires
+            ('technician', 'tech123',      'John',   'Smith',    'technician', ['Duval','Clay','St. Johns','Nassau'],          True,  datetime.date(2027, 6, 30)),
+            ('mthompson',  'mthompson123', 'Marcus', 'Thompson', 'technician', ['Duval','Clay','St. Johns','Flagler'],         True,  datetime.date(2026, 8, 15)),
+            ('rdiaz',      'rdiaz123',     'Rosa',   'Diaz',     'technician', ['Duval','Clay','St. Johns','Alachua'],         True,  datetime.date(2027, 3, 15)),
+            ('operations', 'ops123',       'Sarah',  'Johnson',  'operations', [], False, None),
+            ('manager',    'mgr123',       'Robert', 'Wolf',     'manager',    [], False, None),
+            ('admin',      'admin123',     'Admin',  'Wolf',     'admin',      [], False, None),
+            ('customer',   'cust123',      'James',  'Wilson',   'customer',   [], False, None),
         ]
-        for username, password, first, last, role in DEMO_USERS:
+        for username, password, first, last, role, counties, is_licensed, license_expires in DEMO_USERS:
             user, _ = User.objects.get_or_create(username=username)
             user.set_password(password)
             user.first_name = first
             user.last_name = last
             user.save()
             profile, created = UserProfile.objects.get_or_create(user=user, defaults={'role': role})
-            if not created and profile.role != role:
-                profile.role = role
-                profile.save()
+            profile.role = role
+            profile.counties = counties
+            profile.is_licensed = is_licensed
+            profile.license_expires = license_expires
+            profile.save()
 
     def _seed_sample_customers(self):
         from .models import Customer

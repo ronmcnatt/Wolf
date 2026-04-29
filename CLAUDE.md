@@ -55,6 +55,7 @@ To re-seed locally: `python manage.py create_demo_users`.  Change this behavior 
 
 ### UserProfile (technician/models.py)
 Links Django's built-in `User` to a role. Roles: `technician`, `operations`, `manager`, `admin`, `customer`.
+Technician-specific fields: `counties` (JSONField — list of FL county strings they are certified to work in), `is_licensed` (bool), `license_expires` (DateField). Demo technician coverage: John Smith → Duval/Clay/St. Johns/Nassau; Marcus Thompson → Duval/Clay/St. Johns/Flagler; Rosa Diaz → Duval/Clay/St. Johns/Alachua.
 
 ### Customer (technician/models.py)
 Stores reusable customer/account records. Fields: business name, contact name, phone, email, billing address, city, state, county, zip, notes, property lat/lng, device lat/lng. Operations and Manager roles can create and edit. 10 sample customers seeded on startup with addresses and coordinates matching the demo jobs.
@@ -119,6 +120,7 @@ Login redirects automatically based on role. Unauthorized role access redirects 
 | 0005 | Customer model + Job jurisdiction | Customer model; state/county fields on Job |
 | 0006 | customer_latlng | lat/lng/device_lat/device_lng on Customer |
 | 0007 | utility_fields_on_testresult | utility_account_number, utility_reference_number, hazard_level, service_type on TestResult |
+| 0008 | technician_credentials | counties (JSONField), is_licensed, license_expires on UserProfile |
 
 ## Sample Data (Supabase / Production)
 All one-time seed endpoints have been run against Supabase. Current state:
@@ -131,6 +133,8 @@ All one-time seed endpoints have been run against Supabase. Current state:
 Seed endpoints (keep in urls.py for future reseeds, idempotent):
 - `GET /tech/reseedcoords/` — patches lat/lng onto the 10 sample customers
 - `GET /tech/seedhistory/` — creates historical jobs + test results (skips if already exist)
+- `GET /tech/reassignhistory/` — patches assigned_to/submitted_by on historical jobs (fixes unassigned if seedhistory ran before mthompson/rdiaz were created)
+- `GET /tech/seedutilityfields/` — patches utility_account_number on existing TestResults with demo account numbers (JEA/CCUA/SJC format by county)
 
 ## Florida Utility Integration Reference
 Full FL utility research is in `florida_utilities.csv` at project root (60+ utilities). Key findings:
@@ -175,6 +179,7 @@ Full FL utility research is in `florida_utilities.csv` at project root (60+ util
 - **Operations dashboard tabs**: `?tab=jobs` (default) and `?tab=customers`. Jobs tab defaults to showing all jobs (no date filter); user can filter by date, status, or technician. Customers tab has search by business name, city, or county; shows active jobs, total jobs, last test date and pass/fail result per customer.
 - **State/County dropdowns**: FL counties are pre-populated; selecting a non-FL state clears the county list. Pattern used in job form, customer modal, and customer edit page.
 - **Dynamic utility section on test form**: when a job's state+county maps to a known utility (via `UTILITY_CONFIGS` in views.py), a teal-bordered card appears on the test form above Notes. Shows utility name, platform badge, submission instructions, and the correct account number field label for that utility (BSI CCN, JEA account #, VEPO VCC#, etc.). GRU (Alachua) additionally shows hazard level and service type selects.
+- **Technician county filter on job form**: the "Assign To" dropdown in `ops_job_form.html` is JS-driven (TECHNICIANS array from `technicians_json`). Selecting a county filters the dropdown to only technicians whose `counties` list includes that county. A coverage note "(N cover County, M hidden)" appears next to the label. If a tech's license expires within 90 days, their name shows "⚠ Exp. Mon YYYY" in amber; if expired, "✗ License expired" in red. Techs outside coverage but already assigned to a job appear with "⚠ Outside coverage area" warning.
 
 ## Conventions
 - Time zone: `America/New_York`

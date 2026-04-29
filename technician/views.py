@@ -18,6 +18,7 @@ UTILITY_CONFIGS = {
     ('FL', 'Broward'):      {'utility': 'Broward County / BSI municipalities', 'platform': 'BSI Online', 'account_label': 'BSI Customer Confirmation Number (CCN)', 'reference_label': 'Permit Number (Fort Lauderdale only)', 'show_hazard': False, 'show_service_type': False, 'note': 'CCN is mailed by the utility to the property owner. Submit at bsionline.com. Fort Lauderdale adds a $45 recertification admin fee.'},
     ('FL', 'Charlotte'):    {'utility': 'Charlotte County Utilities', 'platform': 'Email (PDF)', 'account_label': 'Charlotte County Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Email to CCUBackflow@CharlotteCountyFL.gov within 30 days.'},
     ('FL', 'Citrus'):       {'utility': 'Citrus County / FGUA', 'platform': 'Email (FGUA form)', 'account_label': 'FGUA Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'FGUA-approved form required. Submit to appropriate FGUA office.'},
+    ('FL', 'Clay'):         {'utility': 'Clay County Utility Authority (CCUA)', 'platform': 'Email / Online Portal', 'account_label': 'CCUA Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Submit via the CCUA customer portal or email crossconnection@ccua.com. Annual testing required for all commercial assemblies.'},
     ('FL', 'Collier'):      {'utility': 'Collier County Water-Sewer District', 'platform': 'Contact utility', 'account_label': 'Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Contact Collier County: 239-252-6245.'},
     ('FL', 'Duval'):        {'utility': 'JEA (Jacksonville Electric Authority)', 'platform': 'Email', 'account_label': 'JEA Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Submit to backflow@jea.com within 30 days of test date.'},
     ('FL', 'Escambia'):     {'utility': 'ECUA (Escambia County Utilities Authority)', 'platform': 'Email', 'account_label': 'ECUA Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Contact ECUA for submission details: ecua.fl.gov.'},
@@ -295,8 +296,18 @@ def ops_dashboard(request):
 @role_required('operations', 'manager')
 def ops_job_form(request, job_id=None):
     job = get_object_or_404(Job, pk=job_id) if job_id else None
-    technicians = User.objects.filter(profile__role='technician').order_by('first_name')
+    technicians = User.objects.filter(profile__role='technician').select_related('profile').order_by('first_name')
     customers = Customer.objects.all()
+
+    today = timezone.localdate()
+    technicians_json = json.dumps([{
+        'id': t.id,
+        'name': t.get_full_name() or t.username,
+        'counties': getattr(t, 'profile', None) and t.profile.counties or [],
+        'is_licensed': getattr(t, 'profile', None) and t.profile.is_licensed or False,
+        'license_expires': str(t.profile.license_expires) if getattr(t, 'profile', None) and t.profile.license_expires else '',
+    } for t in technicians])
+
     customers_json = json.dumps([{
         'id': c.id, 'business_name': c.business_name, 'contact_name': c.contact_name,
         'phone': c.phone, 'email': c.email, 'address': c.address,
@@ -355,6 +366,7 @@ def ops_job_form(request, job_id=None):
         'technicians': technicians,
         'customers': customers,
         'customers_json': customers_json,
+        'technicians_json': technicians_json,
         'DEVICE_TYPES': Job.DEVICE_TYPES,
         'STATUS_CHOICES': Job.STATUS_CHOICES,
         'US_STATES': US_STATES,
@@ -618,6 +630,33 @@ def reassign_history(request):
         'updated_results': updated_results,
         'missing': missing,
     })
+
+
+# ── Temporary: populate demo utility account numbers on TestResults ───────────
+
+def seed_utility_fields(request):
+    # Maps customer name → (utility_account_number, county) for all sample customers.
+    # Account number formats mirror real utilities: JEA for Duval, CCUA for Clay,
+    # SJC for St. Johns.
+    ACCT_MAP = {
+        'Riverside Auto Wash':          'JEA-4521-8871',
+        'Sunshine Apartments':           'JEA-4521-8872',
+        'Atlantic Beach City Hall':      'JEA-4521-8873',
+        'Neptune Beach HOA':             'JEA-4521-8874',
+        'Mandarin Presbyterian Church':  'JEA-4521-8875',
+        'Baymeadows Plaza':              'JEA-4521-8876',
+        'Orange Park Commons HOA':       'CCUA-20065-001',
+        'Fleming Island Medical Center': 'CCUA-20003-002',
+        'St. Johns County Rec Center':   'SJC-32259-001',
+        'Ponte Vedra Beach Club':        'SJC-32082-002',
+    }
+    updated = 0
+    for name, acct in ACCT_MAP.items():
+        count = TestResult.objects.filter(customer=name, utility_account_number='').update(
+            utility_account_number=acct
+        )
+        updated += count
+    return JsonResponse({'ok': True, 'updated': updated})
 
 
 # ── Temporary: reseed customer coordinates ────────────────────────────────────
