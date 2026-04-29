@@ -253,6 +253,61 @@
         </div>
       </div>
 
+      {% if utility_config %}
+      <!-- Utility-Specific Information -->
+      <div class="utility-section">
+        <div class="utility-header">
+          <div class="utility-header-left">
+            <span class="utility-badge">{{ job.state }} · {{ job.county }}</span>
+            <span class="utility-name">{{ utility_config.utility }}</span>
+          </div>
+          <span class="utility-platform-tag">{{ utility_config.platform }}</span>
+        </div>
+
+        {% if utility_config.note %}
+        <div class="utility-note">
+          <span class="utility-note-icon">ℹ</span>
+          <span>{{ utility_config.note }}</span>
+        </div>
+        {% endif %}
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>{{ utility_config.account_label }}</label>
+            <input type="text" name="utility_account_number" placeholder="Required for utility submission">
+          </div>
+          {% if utility_config.reference_label %}
+          <div class="form-group">
+            <label>{{ utility_config.reference_label }}</label>
+            <input type="text" name="utility_reference_number" placeholder="Optional">
+          </div>
+          {% endif %}
+          {% if utility_config.show_hazard %}
+          <div class="form-group">
+            <label>Hazard Level</label>
+            <select name="hazard_level">
+              <option value="">— Select —</option>
+              <option value="low">Low Hazard</option>
+              <option value="high">High Hazard</option>
+            </select>
+          </div>
+          {% endif %}
+          {% if utility_config.show_service_type %}
+          <div class="form-group">
+            <label>Service Type</label>
+            <select name="service_type">
+              <option value="">— Select —</option>
+              <option value="domestic">Domestic</option>
+              <option value="irrigation">Irrigation</option>
+              <option value="fire">Fire Protection</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
       <!-- Notes & Submit -->
       <div class="form-grid-3">
         <div class="form-group span-3">

@@ -1,0 +1,67 @@
+Utility Name,Counties Covered,Submission Platform,Has Public API,Website URL,Form / Portal URL,Submission Contact / Notes
+JEA (Jacksonville Electric Authority),Duval,Email,No,https://www.jea.com,https://www.jea.com/about/water_supply/backflow/,backflow@jea.com — 30-day window; JEA-approved Qualified Vendors only
+City of Tampa Water Department,"Hillsborough (city limits)",SwiftComply,No,https://www.tampa.gov,https://tampafl.c3swift.com,Register via FieldQuality@tampa.gov — 7-calendar-day submission deadline
+Hillsborough County Utilities (unincorporated),"Hillsborough (unincorporated)",Backflow BMP,No,https://www.hcfl.gov,https://bmpcomp.com/backflow/,Separate from City of Tampa; recently migrated from paper forms
+Orange County Utilities,Orange,Email (PDF),No,https://www.orangecountyfl.net,https://www.orangecountyfl.net/WaterGarbageRecycling/CrossConnectionControl.aspx,Water.Backflow@ocfl.net — own PDF form required
+OUC (Orlando Utilities Commission),"Orange (City of Orlando)",OUC Water Distribution Division,No,https://www.ouc.com,https://www.ouc.com/about/water-services/backflow/,OUC tests residential itself; commercial submits to Water Distribution Division
+Toho Water Authority,Osceola,Email,No,https://www.tohowater.com,https://www.tohowater.com/our-water/cross-connection-control-program,BackflowCompliance@tohowater.com — Toho tests residential itself ($3/mo); commercial annual
+KUA (Kissimmee Utility Authority),Osceola,Unknown — contact KUA,No,https://www.kua.com,https://www.kua.com,KUA is primarily electric; water is Toho/city
+Seminole County Utilities,Seminole,Email,No,https://www.seminolecountyfl.gov,https://www.seminolecountyfl.gov/departments-services/utilities/water/ccc-program,cwyatt@seminolecountyfl.gov — affirmations within 24-48 hours after repairs
+Palm Beach County Water Utilities (PBCWUD),Palm Beach,E-Backflow (proprietary portal),No,https://www.discover.pbc.gov/waterutilities,https://ebill.pbcwater.com/ebackflow,Pre-register: WUDEBACKFLOWNOTIFICATION@pbcwater.com
+City of West Palm Beach,Palm Beach,E-Backflow / manual,No,https://www.wpb.org,https://www.wpb.org/Departments/Public-Utilities/BackflowCross-Connection,60-day window for new installations; own Cross-Connection Control Manual
+Broward County Water & Wastewater Services,"Broward (unincorporated)",BSI Online,No,https://www.broward.org,https://www.broward.org/WaterServices/Pages/BackflowCertification.aspx,bsionline.com — property owner CCN (Customer Confirmation Number) required
+City of Fort Lauderdale,Broward,BSI Online,No,https://www.fortlauderdale.gov,https://www.fortlauderdale.gov/government/departments-i-z/public-works/environmental-operations/environmental-regulatory-affairs/backflow-cross-connection,$45 city recertification admin fee per assembly; Permit Number required on form
+City of Davie,Broward,BSI Online,No,https://www.davie-fl.gov,https://www.davie-fl.gov/373/Backflow-Cross-Connection-Control,BSI mails reminders to property owners; tester submits via bsionline.com
+City of Pompano Beach,Broward,BSI Online,No,https://www.pompanobeachfl.gov,https://www.pompanobeachfl.gov/residents/utilities/backflow,BSI manages program database
+City of Plantation,Broward,BSI Online,No,https://www.plantation.org,https://www.plantation.org/government/departments/utilities/utility-account-customer-service/backflow-permits,BSI since Feb 15 2015; utility Customer Service no longer handles submissions
+City of Dania Beach,Broward,TrackMyBackflow (Aqua Backflow),No,https://www.daniabeachfl.gov,https://www.daniabeachfl.gov/2718/Backflow-Control,trackmybackflow.com — free tester registration; Aqua Backflow manages program
+City of Holly Hill,Volusia,BSI Online,No,https://www.hollyhillfl.org,https://www.hollyhillfl.org/publicworks/page/cross-connection-control-program-online-backflow-testing-reporting,BSI since Feb 1 2019
+City of Boca Raton,Palm Beach,BSI Online,No,https://www.myboca.us,https://www.myboca.us,BSI manages inspection program
+City of Delray Beach,Palm Beach,VEPO CrossConnex,No,https://www.delraybeachfl.gov,https://www.delraybeachfl.gov/government/city-departments/utilities/cross-connection-control,vepocc.com — mandatory Feb 1 2021; tester collects $15/submission from owner; VCC# required
+Miami-Dade Water & Sewer (MDWASD),Miami-Dade,Tokay WebTest,No,https://www.miamidade.gov,https://miamidade.tokaytest.com,~30000 devices; MDWASD account/meter number required; CCU: 305-547-3046
+Sarasota County Utilities,Sarasota,Tokay WebTest,No,https://www.scgov.net,https://sarasota.tokaytest.com,backflow@scgov.net — $5/submission fee; meter number required
+Manatee County Utilities,Manatee,Manatee Backflow Portal (proprietary),No,https://www.mymanatee.org,https://www.mymanatee.org/departments/utilities-department/backflow-division,Portal-only (email/fax rejected); 7-day standard submission; 1-business-day for failures; pre-registration required
+Indian River County Utilities,Indian River,BSI Online,No,https://www.indianriver.gov,https://www.indianriver.gov/services/utilities/cross_connection_control_program.php,bsionlinetracking.com — BSI is primary contact; 772-226-3433
+Pasco County Utilities,Pasco,Email (Pasco-specific PDF form),No,https://www.pascocountyfl.gov,https://www.pascocountyfl.gov/services/utilities/water_resources/backflow___cross-connection_control.php,backflowprogram@mypasco.net — Pasco-specific form required (not generic); coordinator: Timothy Janssen
+Hernando County / FGUA,"Hernando (partial FGUA)",Email (FGUA form),No,https://www.hernandocounty.us,https://www.fgua.com/community/cross-connections/,FGUA-approved forms required for FGUA-served areas
+Charlotte County Utilities,Charlotte,Email (PDF),No,https://www.charlottecountyfl.gov,https://www.charlottecountyfl.gov/departments/utilities/about-utilities/treatment-facilities/backflow-cross-connection-program.stml,CCUBackflow@CharlotteCountyFL.gov — 30-day window
+Lee County Utilities,Lee,Unknown,No,https://www.leegov.com,https://www.leegov.com/utilities/customer-resource-center/crossconnection,FGUA serves Lehigh Acres / N. Fort Myers / South Seas portions
+City of Fort Myers,"Lee (city limits)",Unknown,No,https://www.cityftmyers.com,,Contact city utilities
+Cape Coral Utilities,"Lee (Cape Coral)",Online portal,No,https://www.capecoral.gov,https://www.capecoral.gov,Electronic submission referenced by testing companies
+Collier County Water-Sewer District,Collier,Unknown,No,https://www.colliercountyfl.gov,https://www.colliercountyfl.gov/government/public-utilities/water-sewer-district/water-division/meters-and-backflows,239-252-6245; FAC 62-555.360 cited
+City of Naples,"Collier (city limits)",Unknown,No,https://www.naplesgov.com,,Small municipal system; contact city
+Brevard County Utilities,Brevard,Unknown,No,https://www.brevardfl.gov,,Contact county utilities
+St. Lucie County Utilities,St. Lucie,Unknown,No,https://www.stlucieco.gov,https://www.stlucieco.gov/departments-and-services/public-utilities/water-service,772-464-7323; Cross-Connection Control Policy on file
+City of Port St. Lucie,St. Lucie,Unknown,No,https://www.cityofpsl.com,https://www.cityofpsl.com/Government/Your-City-Government/Departments/Utility-Systems,Contact city utilities
+Martin County Utilities,Martin,Unknown,No,https://www.martin.fl.us,,772-287-5453
+City of Daytona Beach / Volusia County,Volusia,Paper form,No,https://www.daytonabeach.gov,https://www.daytonabeach.gov/747/Backflow-Prevention,Original paper form; 125 Basin St. Daytona Beach FL 32114
+GRU (Gainesville Regional Utilities),Alachua,GRU CCC Online Database (proprietary),No,https://www.gru.com,https://www.gru.com/myhome/productsservices/backflowprevention.aspx,Proprietary system; tester must obtain GRU account; residential biennial (2-year) testing
+City of Tallahassee Utilities,Leon,Physical delivery only,No,https://www.talgov.com,https://www.talgov.com/you/you-learn-utilities-water-cross,Originals to 4505-A Springhill Rd Tallahassee FL 32305; no faxes; required before CO
+City of Lakeland,Polk,Unknown,No,https://www.lakelandgov.net,,Contact city utilities
+Marion County Utilities,Marion,Email,No,https://www.utilities.marionfl.org,https://www.utilities.marionfl.org/my-water/backflow-information,crossconnectioncontrol@marionfl.org; 352-307-4630; FGUA serves 14 Marion systems separately
+Okaloosa County Water & Sewer,"Okaloosa (Fort Walton Beach / Destin)",Unknown,No,https://www.myokaloosa.com,https://www.myokaloosa.com/ws/faqs,850-651-7172; Dir. Mike Hackett
+ECUA (Escambia County Utilities Authority),Escambia,Unknown,No,https://www.ecua.fl.gov,https://www.ecua.fl.gov/services/water-services,Sole-source aquifer; contact ECUA
+Bay County / City of Panama City,Bay,Email + permit,No,https://www.panamacity.gov,https://www.panamacity.gov/686/Cross-Connection-Control-Program,$44 permit fee; online permit at us.cloudpermit.com
+St. Johns County Utilities,St. Johns,Unknown,No,https://www.sjcfl.us,https://www.sjcfl.us/wp-content/uploads/2024/02/FY-23-SJCUD-Standards-Manual-Revisions.pdf,FAC 62-555.360 referenced; City of St. Augustine has own program
+Lake County Utilities,Lake,Email (FGUA form for FGUA areas),No,https://www.lakecountyfl.gov,,FGUA heavily present; 23 FGUA systems in Lake County
+FGUA (Florida Governmental Utility Authority),"Alachua, Citrus, Flagler, Hardee, Hillsborough, Lake, Lee, Marion, Nassau, Orange, Pasco, Polk, Putnam, Seminole, Volusia (97+ systems)",Email (FGUA-approved forms),No,https://www.fgua.com,https://www.fgua.com/community/cross-connections/,FGUA-approved forms (Attachment B) required; submit to appropriate local FGUA office
+NSCUDD / The Villages (North Sumter County Utility Dependent District),Sumter,Unknown,No,https://www.districtgov.org,https://www.districtgov.org,Annual testing commercial; DC/RPZ at all service connections
+Reedy Creek / Central Florida Tourism Oversight District,"Orange, Osceola (Disney area)",Internal,No,https://www.oversightdistrict.org,https://www.oversightdistrict.org,Internal utility; Cross Connection and Backflow Manual 2011; contact district directly
+Pinellas County Utilities,Pinellas,Unknown,No,https://www.pinellascounty.org,,Contact county utilities
+City of Clearwater,"Pinellas (city limits)",Unknown,No,https://www.myclearwater.com,,Contact city utilities
+City of St. Petersburg,"Pinellas (city limits)",Unknown,No,https://www.stpete.org,,Contact city utilities
+City of Pembroke Pines,Broward,Unknown,No,https://www.ppines.com,,Contact city utilities
+City of Hollywood,Broward,Unknown,No,https://www.hollywoodfl.org,,Contact city utilities
+City of Coral Springs,Broward,Unknown,No,https://www.coralsprings.org,,Contact city utilities
+City of Sunrise,Broward,Unknown,No,https://www.sunrisefl.gov,,Contact city utilities
+City of Deerfield Beach,Broward,Unknown,No,https://www.deerfield-beach.com,,Contact city utilities
+City of Pompano Beach,Broward,BSI Online,No,https://www.pompanobeachfl.gov,https://www.pompanobeachfl.gov/residents/utilities/backflow,Listed above — BSI program
+City of Pensacola,Escambia,Unknown,No,https://www.cityofpensacola.com,,Contact city utilities; ECUA may cover
+Polk County Utilities,Polk,Unknown (FGUA partial),No,https://www.polk-county.net,,FGUA serves 7 Polk systems
+Sumter County (excluding The Villages),Sumter,Unknown,No,,,Contact county utilities
+Citrus County Utilities,Citrus,FGUA (partial),No,https://www.bocc.citrus.fl.us,,FGUA present in Citrus County
+Nassau County Utilities,Nassau,FGUA (partial),No,https://www.nassaucountyfl.com,,FGUA present in Nassau County
+Flagler County / Palm Coast Utilities,Flagler,FGUA (partial),No,https://www.flaglercounty.gov,,FGUA present; Palm Coast is largest city
+Putnam County Utilities,Putnam,FGUA (partial),No,https://www.putnam-fl.com,,FGUA present in Putnam County
+City of Melbourne / Palm Bay / Brevard,Brevard,Unknown,No,https://www.melbourneflorida.org,,Contact city utilities
+City of Ocala / Marion County,Marion,Email,No,https://www.ocalafl.org,,crossconnectioncontrol@marionfl.org (county); city may have own program

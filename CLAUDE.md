@@ -76,6 +76,7 @@ Persists backflow test readings submitted by technicians. Fields cover:
 - Device identity: type, size, manufacturer, model, serial, install year
 - Test readings: CV1/CV2 results + PSI, RV result + PSI, line PSI
 - Overall pass/fail, technician initials, notes, submitted_by user
+- Utility-specific fields: `utility_account_number` (account/meter/CCN/VCC# for that utility), `utility_reference_number` (permit #, secondary ref), `hazard_level` (low/high — used by GRU and others), `service_type` (domestic/irrigation/fire/other)
 - Future: utility API submission tracking (`utility_submitted`, `utility_submitted_at`)
 
 ## Role-Based Access
@@ -117,6 +118,7 @@ Login redirects automatically based on role. Unauthorized role access redirects 
 | 0004 | customer role | customer choice added to UserProfile.role |
 | 0005 | Customer model + Job jurisdiction | Customer model; state/county fields on Job |
 | 0006 | customer_latlng | lat/lng/device_lat/device_lng on Customer |
+| 0007 | utility_fields_on_testresult | utility_account_number, utility_reference_number, hazard_level, service_type on TestResult |
 
 ## Sample Data (Supabase / Production)
 All one-time seed endpoints have been run against Supabase. Current state:
@@ -130,12 +132,32 @@ Seed endpoints (keep in urls.py for future reseeds, idempotent):
 - `GET /tech/reseedcoords/` — patches lat/lng onto the 10 sample customers
 - `GET /tech/seedhistory/` — creates historical jobs + test results (skips if already exist)
 
+## Florida Utility Integration Reference
+Full FL utility research is in `florida_utilities.csv` at project root (60+ utilities). Key findings:
+- **No Florida utility has a public API** — all use closed SaaS portals or email/PDF
+- **Platform landscape**: BSI Online (Broward + others), Tokay WebTest (Miami-Dade, Sarasota), SwiftComply (Tampa), VEPO CrossConnex (Delray Beach), Backflow BMP (Hillsborough County), Manatee portal (in-house), GRU CCC Database (in-house), PBCWUD E-Backflow (in-house)
+- **Universal test fields** are identical statewide (AWWA/USC standard: CV1, CV2, RV, line PSI)
+- **The key differentiator per utility** is the account identifier label (JEA Account #, BSI CCN, VEPO VCC#, Tokay meter #, PBCWUD account #, etc.)
+- **`UTILITY_CONFIGS` dict** in `views.py` maps `(state, county)` tuples to utility metadata; currently covers 35 FL counties; the `tech_job_detail` view passes `utility_config` to `job_detail.html`
+- **Dynamic utility section** on the test form: if a county maps to a known utility, a teal-bordered section appears above the Notes field showing the utility name, platform, the right account number label, optional reference/permit field, and a submission reminder note. GRU (Alachua) also shows hazard level and service type dropdowns.
+- To add a new county config: add a `('FL', 'CountyName')` entry to `UTILITY_CONFIGS` in `views.py` — no template changes needed
+
 ## Next Priorities (as of April 2026)
+- [ ] Create Import Tab on the Operations Landing Page, have an upload button, preview and import
+- [ ] Identify / Handle Aquisitions in Data Model
+- [ ] Scheduling and dispatch system with routing optimization
+- [ ] Customer self-registers
+- [ ] Wire up utility submission: generate per-utility PDF (BSI form, Pasco form, etc.) or POST to SwiftComply/Tokay portal using stored `utility_account_number`
+- [ ] Ability to submit results to a utility, Portal and API
+- [ ] Sales role that can see estimates, ability to email to prospective customers, saved in QBO
+- [ ] Abiilty to update Estimate to an Order
 - [ ] Manager-specific reporting views (test results summary, technician performance)
 - [ ] Multi-company / multi-tenant architecture for acquired companies
-- [ ] Scheduling and dispatch system with routing optimization
 - [ ] Utility compliance report generation and submission
 - [ ] QuickBooks Online integration for invoicing
+- [ ] Integrate Repairs and Parts Inventory
+- [ ] Customer self orders a test
+- [ ] Handle Technician credentials and work schedule, PTO, service area
 
 ## Device Types Supported
 | Code | Full Name |
@@ -152,6 +174,7 @@ Seed endpoints (keep in urls.py for future reseeds, idempotent):
 - **Leaflet maps**: both the job form and customer edit form have Property Location and Device Location maps (OpenStreetMap tiles via Leaflet 1.9.4). Dragging markers updates hidden lat/lng inputs. Job form has a "📍 Locate" button that geocodes the address via Nominatim.
 - **Operations dashboard tabs**: `?tab=jobs` (default) and `?tab=customers`. Jobs tab defaults to showing all jobs (no date filter); user can filter by date, status, or technician. Customers tab has search by business name, city, or county; shows active jobs, total jobs, last test date and pass/fail result per customer.
 - **State/County dropdowns**: FL counties are pre-populated; selecting a non-FL state clears the county list. Pattern used in job form, customer modal, and customer edit page.
+- **Dynamic utility section on test form**: when a job's state+county maps to a known utility (via `UTILITY_CONFIGS` in views.py), a teal-bordered card appears on the test form above Notes. Shows utility name, platform badge, submission instructions, and the correct account number field label for that utility (BSI CCN, JEA account #, VEPO VCC#, etc.). GRU (Alachua) additionally shows hazard level and service type selects.
 
 ## Conventions
 - Time zone: `America/New_York`

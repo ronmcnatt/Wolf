@@ -8,6 +8,47 @@ from django.views.decorators.http import require_POST
 from functools import wraps
 from .models import UserProfile, Job, TestResult, Customer
 
+# Maps (state, county) → utility submission metadata shown on the test form.
+# Keys: utility, platform, account_label, reference_label, show_hazard,
+#       show_service_type, note
+UTILITY_CONFIGS = {
+    ('FL', 'Alachua'):      {'utility': 'GRU (Gainesville Regional Utilities)', 'platform': 'GRU CCC Online Database', 'account_label': 'GRU Account / Device ID', 'reference_label': None, 'show_hazard': True, 'show_service_type': True, 'note': 'Submit via GRU proprietary portal. Tester must have GRU credentials. Residential testing is biennial (2-year).'},
+    ('FL', 'Bay'):          {'utility': 'City of Panama City', 'platform': 'Email + Permit', 'account_label': 'Account Number', 'reference_label': 'Building Permit Number', 'show_hazard': False, 'show_service_type': False, 'note': '$44 permit fee required. Online permit at us.cloudpermit.com.'},
+    ('FL', 'Brevard'):      {'utility': 'Brevard County Utilities', 'platform': 'Email', 'account_label': 'Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Contact Brevard County Utilities for submission details.'},
+    ('FL', 'Broward'):      {'utility': 'Broward County / BSI municipalities', 'platform': 'BSI Online', 'account_label': 'BSI Customer Confirmation Number (CCN)', 'reference_label': 'Permit Number (Fort Lauderdale only)', 'show_hazard': False, 'show_service_type': False, 'note': 'CCN is mailed by the utility to the property owner. Submit at bsionline.com. Fort Lauderdale adds a $45 recertification admin fee.'},
+    ('FL', 'Charlotte'):    {'utility': 'Charlotte County Utilities', 'platform': 'Email (PDF)', 'account_label': 'Charlotte County Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Email to CCUBackflow@CharlotteCountyFL.gov within 30 days.'},
+    ('FL', 'Citrus'):       {'utility': 'Citrus County / FGUA', 'platform': 'Email (FGUA form)', 'account_label': 'FGUA Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'FGUA-approved form required. Submit to appropriate FGUA office.'},
+    ('FL', 'Collier'):      {'utility': 'Collier County Water-Sewer District', 'platform': 'Contact utility', 'account_label': 'Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Contact Collier County: 239-252-6245.'},
+    ('FL', 'Duval'):        {'utility': 'JEA (Jacksonville Electric Authority)', 'platform': 'Email', 'account_label': 'JEA Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Submit to backflow@jea.com within 30 days of test date.'},
+    ('FL', 'Escambia'):     {'utility': 'ECUA (Escambia County Utilities Authority)', 'platform': 'Email', 'account_label': 'ECUA Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Contact ECUA for submission details: ecua.fl.gov.'},
+    ('FL', 'Flagler'):      {'utility': 'Flagler County / FGUA', 'platform': 'Email (FGUA form)', 'account_label': 'FGUA Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'FGUA-approved form required. Submit to appropriate FGUA office.'},
+    ('FL', 'Hernando'):     {'utility': 'Hernando County / FGUA', 'platform': 'Email (FGUA form)', 'account_label': 'Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'FGUA serves some Hernando areas. FGUA-approved form required.'},
+    ('FL', 'Hillsborough'): {'utility': 'City of Tampa (SwiftComply) / Hillsborough County (Backflow BMP)', 'platform': 'SwiftComply / Backflow BMP', 'account_label': 'Utility Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'City of Tampa: submit via tampafl.c3swift.com within 7 days. Unincorporated Hillsborough: submit via bmpcomp.com.'},
+    ('FL', 'Indian River'):  {'utility': 'Indian River County Utilities', 'platform': 'BSI Online', 'account_label': 'BSI Customer Confirmation Number (CCN)', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Submit at bsionlinetracking.com. BSI primary contact: 800-414-4990.'},
+    ('FL', 'Lake'):         {'utility': 'Lake County / FGUA', 'platform': 'Email (FGUA form)', 'account_label': 'FGUA Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'FGUA serves 23 systems in Lake County. FGUA-approved form required.'},
+    ('FL', 'Lee'):          {'utility': 'Lee County Utilities', 'platform': 'Contact utility', 'account_label': 'Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'FGUA serves Lehigh Acres, N. Fort Myers, South Seas. Contact leegov.com.'},
+    ('FL', 'Leon'):         {'utility': 'City of Tallahassee Utilities', 'platform': 'Physical delivery', 'account_label': 'Tallahassee Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Originals must be physically delivered to 4505-A Springhill Rd, Tallahassee FL 32305. No faxes accepted. Required before Certificate of Occupancy.'},
+    ('FL', 'Manatee'):      {'utility': 'Manatee County Utilities', 'platform': 'Manatee Backflow Portal', 'account_label': 'Manatee Portal Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Portal-only — email/fax explicitly rejected. Submit within 7 days (failures within 1 business day). Pre-registration required.'},
+    ('FL', 'Marion'):       {'utility': 'Marion County Utilities', 'platform': 'Email', 'account_label': 'Marion County Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Email to crossconnectioncontrol@marionfl.org. Phone: 352-307-4630.'},
+    ('FL', 'Martin'):       {'utility': 'Martin County Utilities', 'platform': 'Contact utility', 'account_label': 'Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Contact Martin County Utilities: 772-287-5453.'},
+    ('FL', 'Miami-Dade'):   {'utility': 'Miami-Dade Water & Sewer (MDWASD)', 'platform': 'Tokay WebTest', 'account_label': 'MDWASD Meter / Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Submit via miamidade.tokaytest.com. CCU: 305-547-3046.'},
+    ('FL', 'Nassau'):       {'utility': 'Nassau County / FGUA', 'platform': 'Email (FGUA form)', 'account_label': 'FGUA Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'FGUA-approved form required. Submit to appropriate FGUA office.'},
+    ('FL', 'Okaloosa'):     {'utility': 'Okaloosa County Water & Sewer', 'platform': 'Contact utility', 'account_label': 'Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Contact Okaloosa County Water & Sewer: 850-651-7172.'},
+    ('FL', 'Orange'):       {'utility': 'Orange County Utilities / OUC', 'platform': 'Email (PDF)', 'account_label': 'Customer Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Email PDF form to Water.Backflow@ocfl.net. Note: all emails become public record.'},
+    ('FL', 'Osceola'):      {'utility': 'Toho Water Authority', 'platform': 'Email', 'account_label': 'Toho Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Toho tests residential devices themselves. Commercial: email to BackflowCompliance@tohowater.com.'},
+    ('FL', 'Palm Beach'):   {'utility': 'Palm Beach County Water Utilities (PBCWUD)', 'platform': 'E-Backflow Portal', 'account_label': 'PBCWUD Account Number', 'reference_label': 'Building Permit # (new installs)', 'show_hazard': False, 'show_service_type': False, 'note': 'Submit via ebill.pbcwater.com/ebackflow. Pre-register: WUDEBACKFLOWNOTIFICATION@pbcwater.com.'},
+    ('FL', 'Pasco'):        {'utility': 'Pasco County Utilities', 'platform': 'Email (Pasco-specific form)', 'account_label': 'Pasco Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Pasco-specific form required — generic forms not accepted. Email to backflowprogram@mypasco.net.'},
+    ('FL', 'Pinellas'):     {'utility': 'Pinellas County Utilities', 'platform': 'Contact utility', 'account_label': 'Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Contact Pinellas County Utilities for submission details.'},
+    ('FL', 'Polk'):         {'utility': 'Polk County / FGUA', 'platform': 'Email (FGUA form)', 'account_label': 'Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'FGUA serves 7 Polk systems. FGUA-approved form required.'},
+    ('FL', 'Putnam'):       {'utility': 'Putnam County / FGUA', 'platform': 'Email (FGUA form)', 'account_label': 'FGUA Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'FGUA-approved form required. Submit to appropriate FGUA office.'},
+    ('FL', 'Sarasota'):     {'utility': 'Sarasota County Utilities', 'platform': 'Tokay WebTest', 'account_label': 'Service Meter Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Submit via sarasota.tokaytest.com. $5/submission fee. Email: backflow@scgov.net.'},
+    ('FL', 'Seminole'):     {'utility': 'Seminole County Utilities', 'platform': 'Email', 'account_label': 'Seminole Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'After repairs: email affirmation within 24–48 hours to cwyatt@seminolecountyfl.gov.'},
+    ('FL', 'St. Johns'):    {'utility': 'St. Johns County Utilities', 'platform': 'Email', 'account_label': 'Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Contact St. Johns County Utilities for submission details.'},
+    ('FL', 'St. Lucie'):    {'utility': 'St. Lucie County Utilities', 'platform': 'Contact utility', 'account_label': 'Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Contact St. Lucie County Utilities: 772-464-7323.'},
+    ('FL', 'Sumter'):       {'utility': 'NSCUDD / The Villages', 'platform': 'Contact utility', 'account_label': 'Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Contact North Sumter County Utility Dependent District for submission details.'},
+    ('FL', 'Volusia'):      {'utility': 'City of Daytona Beach / Volusia County', 'platform': 'Paper form', 'account_label': 'Account Number', 'reference_label': None, 'show_hazard': False, 'show_service_type': False, 'note': 'Paper form only. Deliver to 125 Basin St., Daytona Beach FL 32114.'},
+}
+
 FL_COUNTIES = [
     'Alachua','Baker','Bay','Bradford','Brevard','Broward','Calhoun',
     'Charlotte','Citrus','Clay','Collier','Columbia','DeSoto','Dixie',
@@ -173,16 +214,22 @@ def tech_job_detail(request, job_id):
             notes=p.get('notes', ''),
             technician_initials=p.get('initials', '').upper(),
             submitted_by=request.user,
+            utility_account_number=p.get('utility_account_number', '').strip(),
+            utility_reference_number=p.get('utility_reference_number', '').strip(),
+            hazard_level=p.get('hazard_level', ''),
+            service_type=p.get('service_type', ''),
         )
         job.status = 'completed'
         job.save()
         submitted = True
 
     prior_results = job.test_results.all()
+    utility_config = UTILITY_CONFIGS.get((job.state, job.county))
     return render(request, 'technician/job_detail.html', {
         'job': job,
         'submitted': submitted,
         'prior_results': prior_results,
+        'utility_config': utility_config,
     })
 
 
@@ -514,6 +561,63 @@ def seed_history(request):
             created_jobs += 1
 
     return JsonResponse({'ok': True, 'jobs_created': created_jobs, 'results_created': created_results})
+
+
+# ── Temporary: repair job/result assignments for historical data ──────────────
+
+def reassign_history(request):
+    import datetime as dt
+    from django.contrib.auth.models import User
+
+    TECH_MAP = {
+        'technician': User.objects.filter(username='technician').first(),
+        'mthompson':  User.objects.filter(username='mthompson').first(),
+        'rdiaz':      User.objects.filter(username='rdiaz').first(),
+    }
+
+    ASSIGNMENTS = [
+        ('Riverside Auto Wash',          dt.date(2025, 3, 10),  'technician'),
+        ('Sunshine Apartments',           dt.date(2025, 4, 7),   'mthompson'),
+        ('Orange Park Commons HOA',       dt.date(2025, 4, 21),  'rdiaz'),
+        ('Fleming Island Medical Center', dt.date(2025, 5, 15),  'technician'),
+        ('St. Johns County Rec Center',   dt.date(2025, 6, 9),   'mthompson'),
+        ('Ponte Vedra Beach Club',        dt.date(2025, 7, 22),  'rdiaz'),
+        ('Atlantic Beach City Hall',      dt.date(2025, 8, 11),  'technician'),
+        ('Neptune Beach HOA',             dt.date(2025, 9, 18),  'mthompson'),
+        ('Mandarin Presbyterian Church',  dt.date(2025, 10, 6),  'rdiaz'),
+        ('Baymeadows Plaza',              dt.date(2025, 11, 14), 'technician'),
+        ('Riverside Auto Wash',           dt.date(2026, 1, 13),  'technician'),
+        ('Fleming Island Medical Center', dt.date(2026, 2, 10),  'technician'),
+        ('Atlantic Beach City Hall',      dt.date(2026, 3, 17),  'technician'),
+    ]
+
+    updated_jobs = 0
+    updated_results = 0
+    missing = []
+
+    for name, date, tech_key in ASSIGNMENTS:
+        tech = TECH_MAP.get(tech_key)
+        if not tech:
+            missing.append(tech_key)
+            continue
+        job = Job.objects.filter(customer=name, scheduled_date=date).first()
+        if not job:
+            missing.append(f'job:{name}:{date}')
+            continue
+        job.assigned_to = tech
+        job.save(update_fields=['assigned_to'])
+        updated_jobs += 1
+        for result in job.test_results.filter(submitted_by__isnull=True):
+            result.submitted_by = tech
+            result.save(update_fields=['submitted_by'])
+            updated_results += 1
+
+    return JsonResponse({
+        'ok': True,
+        'updated_jobs': updated_jobs,
+        'updated_results': updated_results,
+        'missing': missing,
+    })
 
 
 # ── Temporary: reseed customer coordinates ────────────────────────────────────

@@ -144,6 +144,22 @@ class TestResult(models.Model):
         User, on_delete=models.SET_NULL, null=True, blank=True, related_name='test_submissions'
     )
 
+    HAZARD_CHOICES = [
+        ('low', 'Low Hazard'),
+        ('high', 'High Hazard'),
+    ]
+    SERVICE_CHOICES = [
+        ('domestic', 'Domestic'),
+        ('irrigation', 'Irrigation'),
+        ('fire', 'Fire Protection'),
+        ('other', 'Other'),
+    ]
+
+    utility_account_number = models.CharField(max_length=100, blank=True)
+    utility_reference_number = models.CharField(max_length=100, blank=True)
+    hazard_level = models.CharField(max_length=10, choices=HAZARD_CHOICES, blank=True)
+    service_type = models.CharField(max_length=20, choices=SERVICE_CHOICES, blank=True)
+
     submitted_at = models.DateTimeField(auto_now_add=True)
     utility_submitted = models.BooleanField(default=False)
     utility_submitted_at = models.DateTimeField(null=True, blank=True)
