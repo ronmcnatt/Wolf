@@ -582,6 +582,42 @@ a { color: inherit; text-decoration: none; }
 .role-admin      { background: rgba(220,38,38,0.12); color: var(--danger); }
 .role-customer   { background: rgba(124,58,237,0.12); color: #7c3aed; }
 
+/* ── COUNTY CHECKBOX GRID ── */
+.county-checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px 8px;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--mid);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--white);
+}
+
+.county-check-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--navy);
+  padding: 4px 0;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.county-check-label input[type="checkbox"] {
+  accent-color: var(--teal);
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.county-check-label:hover { color: var(--teal); }
+
 /* ── FILTER BAR ── */
 .filter-bar {
   background: var(--white);

@@ -37,6 +37,7 @@
           <th>Username</th>
           <th>Email</th>
           <th>Role</th>
+          <th>Coverage &amp; License</th>
           <th>Date Joined</th>
           <th>Actions</th>
         </tr>
@@ -55,6 +56,32 @@
             <span class="badge role-badge role-{{ u.profile.role }}">{{ u.profile.get_role_display }}</span>
             {% else %}
             <span style="color:var(--muted);">No profile</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if u.profile and u.profile.role == 'technician' %}
+              {% if u.profile.counties %}
+              <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:6px;">
+                {% for county in u.profile.counties %}
+                <span style="background:var(--light); border:1px solid var(--mid); border-radius:4px; font-size:11px; padding:1px 6px; color:var(--navy); white-space:nowrap;">{{ county }}</span>
+                {% endfor %}
+              </div>
+              {% else %}
+              <span style="font-size:12px; color:var(--muted);">No counties set</span>
+              {% endif %}
+              {% if u.profile.is_licensed %}
+                {% if u.profile.license_expires %}
+                  <span style="font-size:11px; color:{% if u.profile.license_expires < today %}var(--danger){% elif u.profile.license_expires <= warn_date %}#d97706{% else %}var(--success){% endif %}; font-weight:600;">
+                    ● Licensed · exp. {{ u.profile.license_expires|date:"M j, Y" }}
+                  </span>
+                {% else %}
+                  <span style="font-size:11px; color:var(--success); font-weight:600;">● Licensed</span>
+                {% endif %}
+              {% else %}
+                <span style="font-size:11px; color:var(--muted);">Not licensed</span>
+              {% endif %}
+            {% else %}
+              <span style="color:var(--mid);">—</span>
             {% endif %}
           </td>
           <td style="color:var(--muted);">{{ u.date_joined|date:"M j, Y" }}</td>

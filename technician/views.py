@@ -689,20 +689,25 @@ def reseed_customer_coords(request):
 
 @role_required('admin')
 def admin_users(request):
+    from datetime import timedelta
     users = User.objects.select_related('profile').order_by('profile__role', 'first_name')
     role_counts = {}
     for role, label in UserProfile.ROLES:
         role_counts[role] = users.filter(profile__role=role).count()
+    today = timezone.localdate()
     return render(request, 'technician/admin_users.html', {
         'users': users,
         'role_counts': role_counts,
         'total': users.count(),
         'ROLES': UserProfile.ROLES,
+        'today': today,
+        'warn_date': today + timedelta(days=90),
     })
 
 
 @role_required('admin')
 def admin_user_form(request, user_id=None):
+    from datetime import date as _date
     target = get_object_or_404(User, pk=user_id) if user_id else None
     error = None
 
@@ -715,6 +720,15 @@ def admin_user_form(request, user_id=None):
         role = p.get('role', 'technician')
         password = p.get('password', '')
         confirm = p.get('confirm_password', '')
+
+        counties = p.getlist('counties') if role == 'technician' else []
+        is_licensed = 'is_licensed' in p and role == 'technician'
+        license_expires = None
+        if is_licensed and p.get('license_expires'):
+            try:
+                license_expires = _date.fromisoformat(p['license_expires'])
+            except ValueError:
+                pass
 
         if not target and User.objects.filter(username=username).exists():
             error = f'Username "{username}" is already taken.'
@@ -732,6 +746,9 @@ def admin_user_form(request, user_id=None):
                         update_session_auth_hash(request, target)
                 target.save()
                 target.profile.role = role
+                target.profile.counties = counties
+                target.profile.is_licensed = is_licensed
+                target.profile.license_expires = license_expires
                 target.profile.save()
             else:
                 user = User.objects.create_user(
@@ -741,12 +758,18 @@ def admin_user_form(request, user_id=None):
                     last_name=last_name,
                     email=email,
                 )
-                UserProfile.objects.create(user=user, role=role)
+                UserProfile.objects.create(
+                    user=user, role=role,
+                    counties=counties,
+                    is_licensed=is_licensed,
+                    license_expires=license_expires,
+                )
             return redirect('admin_users')
 
     return render(request, 'technician/admin_user_form.html', {
         'target': target,
         'ROLES': UserProfile.ROLES,
+        'FL_COUNTIES': FL_COUNTIES,
         'error': error,
     })
 

@@ -18,7 +18,7 @@
   <div class="login-error" style="margin-bottom:20px; border-radius:10px; padding:14px 18px;">{{ error }}</div>
   {% endif %}
 
-  <div style="max-width:640px;">
+  <div style="max-width:700px;">
     <form method="POST" class="card">
       {% csrf_token %}
       <h3>{% if target %}User Details{% else %}New User{% endif %}</h3>
@@ -43,7 +43,7 @@
         </div>
         <div class="form-group span-2">
           <label>Role</label>
-          <select name="role">
+          <select name="role" id="role-select" onchange="toggleTechFields(this.value)">
             {% for val, label in ROLES %}
             <option value="{{ val }}"
               {% if target and target.profile.role == val %}selected
@@ -65,7 +65,55 @@
 
       </div>
 
-      <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:8px;">
+      <!-- TECHNICIAN CREDENTIALS — shown only when role = technician -->
+      <div id="tech-credential-fields" style="display:none; border-top:1px solid var(--mid); margin-top:20px; padding-top:20px;">
+
+        <h4 style="font-size:14px; font-weight:700; color:var(--navy); margin-bottom:16px; letter-spacing:0.3px;">
+          Technician Credentials
+        </h4>
+
+        <div class="form-grid" style="grid-template-columns:1fr 1fr; margin-bottom:20px;">
+          <div class="form-group" style="flex-direction:row; align-items:center; gap:10px; padding:12px 16px; background:var(--light); border-radius:10px;">
+            <input type="checkbox" name="is_licensed" id="is-licensed-check"
+              {% if target and target.profile.is_licensed %}checked{% endif %}
+              onchange="toggleLicenseExpiry(this.checked)"
+              style="width:18px; height:18px; accent-color:var(--teal); flex-shrink:0;">
+            <label for="is-licensed-check" style="font-size:14px; font-weight:600; color:var(--navy); cursor:pointer; margin:0;">
+              State Licensed
+            </label>
+          </div>
+          <div class="form-group" id="license-expiry-group"
+               style="{% if not target or not target.profile.is_licensed %}opacity:0.45;{% endif %}">
+            <label>License Expiration Date</label>
+            <input type="date" name="license_expires"
+              value="{{ target.profile.license_expires|date:'Y-m-d'|default:'' }}"
+              {% if not target or not target.profile.is_licensed %}disabled{% endif %}>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label style="display:flex; align-items:center; justify-content:space-between;">
+            <span>Coverage Counties</span>
+            <span id="county-count-label" style="font-size:12px; font-weight:400; color:var(--teal);"></span>
+          </label>
+          <input type="text" id="county-search" placeholder="Filter counties…"
+            style="margin-bottom:8px;"
+            oninput="filterCounties(this.value)">
+          <div class="county-checkbox-grid" id="county-grid">
+            {% for county in FL_COUNTIES %}
+            <label class="county-check-label">
+              <input type="checkbox" name="counties" value="{{ county }}"
+                {% if target and county in target.profile.counties %}checked{% endif %}
+                onchange="updateCountyCount()">
+              {{ county }}
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+      </div>
+
+      <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:24px;">
         <a href="{% url 'admin_users' %}" class="btn btn-outline">Cancel</a>
         <button type="submit" class="btn btn-primary">
           {% if target %}Save Changes{% else %}Create User{% endif %}
@@ -76,4 +124,37 @@
   </div>
 
 </div>
+
+<script>
+  function toggleTechFields(role) {
+    document.getElementById('tech-credential-fields').style.display =
+      role === 'technician' ? 'block' : 'none';
+  }
+
+  function toggleLicenseExpiry(checked) {
+    const group = document.getElementById('license-expiry-group');
+    const input = group.querySelector('input[type="date"]');
+    group.style.opacity = checked ? '1' : '0.45';
+    input.disabled = !checked;
+    if (!checked) input.value = '';
+  }
+
+  function filterCounties(q) {
+    const lower = q.toLowerCase();
+    document.querySelectorAll('.county-check-label').forEach(label => {
+      label.style.display = label.textContent.trim().toLowerCase().includes(lower) ? '' : 'none';
+    });
+  }
+
+  function updateCountyCount() {
+    const checked = document.querySelectorAll('input[name="counties"]:checked').length;
+    document.getElementById('county-count-label').textContent =
+      checked > 0 ? checked + ' selected' : '';
+  }
+
+  // Init on page load
+  const initialRole = document.getElementById('role-select').value;
+  toggleTechFields(initialRole);
+  updateCountyCount();
+</script>
 {% endblock %}
