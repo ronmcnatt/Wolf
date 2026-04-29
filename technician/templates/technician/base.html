@@ -33,5 +33,11 @@
 
   {% block content %}{% endblock %}
 
+  <footer class="session-footer">
+    Signed in as <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
+    &nbsp;·&nbsp; {{ request.user.profile.get_role_display }}
+    &nbsp;·&nbsp; <a href="{% url 'tech_logout' %}">Sign out</a>
+  </footer>
+
 </body>
 </html>
