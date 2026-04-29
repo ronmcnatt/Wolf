@@ -575,6 +575,49 @@ def seed_history(request):
     return JsonResponse({'ok': True, 'jobs_created': created_jobs, 'results_created': created_results})
 
 
+# ── Temporary: seed / repair all demo users ──────────────────────────────────
+
+def seed_users(request):
+    import datetime
+    from django.contrib.auth.models import User
+    from .models import UserProfile
+
+    DEMO_USERS = [
+        # username, password, first, last, role, counties, is_licensed, license_expires
+        ('technician', 'tech123',      'John',   'Smith',    'technician', ['Duval','Clay','St. Johns','Nassau'],  True,  datetime.date(2027, 6, 30)),
+        ('mthompson',  'mthompson123', 'Marcus', 'Thompson', 'technician', ['Duval','Clay','St. Johns','Flagler'], True,  datetime.date(2026, 8, 15)),
+        ('rdiaz',      'rdiaz123',     'Rosa',   'Diaz',     'technician', ['Duval','Clay','St. Johns','Alachua'], True,  datetime.date(2027, 3, 15)),
+        ('operations', 'ops123',       'Sarah',  'Johnson',  'operations', [], False, None),
+        ('manager',    'mgr123',       'Robert', 'Wolf',     'manager',    [], False, None),
+        ('admin',      'admin123',     'Admin',  'Wolf',     'admin',      [], False, None),
+        ('customer',   'cust123',      'James',  'Wilson',   'customer',   [], False, None),
+    ]
+
+    created_users = []
+    updated_users = []
+
+    for username, password, first, last, role, counties, is_licensed, license_expires in DEMO_USERS:
+        user, created = User.objects.get_or_create(username=username)
+        user.set_password(password)
+        user.first_name = first
+        user.last_name = last
+        user.save()
+
+        profile, _ = UserProfile.objects.get_or_create(user=user, defaults={'role': role})
+        profile.role = role
+        profile.counties = counties
+        profile.is_licensed = is_licensed
+        profile.license_expires = license_expires
+        profile.save()
+
+        if created:
+            created_users.append(username)
+        else:
+            updated_users.append(username)
+
+    return JsonResponse({'ok': True, 'created': created_users, 'updated': updated_users})
+
+
 # ── Temporary: repair job/result assignments for historical data ──────────────
 
 def reassign_history(request):

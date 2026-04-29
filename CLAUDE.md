@@ -131,6 +131,7 @@ All one-time seed endpoints have been run against Supabase. Current state:
 - **13 TestResult records** — one for each completed job
 
 Seed endpoints (keep in urls.py for future reseeds, idempotent):
+- `GET /tech/seedusers/` — creates/updates all 7 demo users with correct passwords, roles, counties, and license data (use when AppConfig.ready() seed fails silently)
 - `GET /tech/reseedcoords/` — patches lat/lng onto the 10 sample customers
 - `GET /tech/seedhistory/` — creates historical jobs + test results (skips if already exist)
 - `GET /tech/reassignhistory/` — patches assigned_to/submitted_by on historical jobs (fixes unassigned if seedhistory ran before mthompson/rdiaz were created)

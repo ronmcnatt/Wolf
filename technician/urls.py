@@ -29,6 +29,7 @@ path('ops/customers/new/', views.ops_customer_form, name='ops_customer_new'),
     path('customer/', views.customer_dashboard, name='customer_dashboard'),
 
     # Temporary seed endpoints
+    path('seedusers/', views.seed_users, name='seed_users'),
     path('reseedcoords/', views.reseed_customer_coords, name='reseed_customer_coords'),
     path('seedhistory/', views.seed_history, name='seed_history'),
     path('reassignhistory/', views.reassign_history, name='reassign_history'),
