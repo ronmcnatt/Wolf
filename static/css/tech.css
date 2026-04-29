@@ -122,6 +122,46 @@ a { color: inherit; text-decoration: none; }
 .stat-card .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-top: 4px; }
 
 /* ── SCHEDULE LIST ── */
+/* ── SCHEDULE DATE FILTER ── */
+.schedule-filter-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.schedule-filter-pill {
+  padding: 7px 18px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--white);
+  border: 1.5px solid var(--mid);
+  text-decoration: none;
+  transition: all 0.15s;
+}
+
+.schedule-filter-pill:hover {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+
+.schedule-filter-pill.active {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: var(--white);
+}
+
+/* ── JOB DATE LABEL (shown in upcoming/all views) ── */
+.job-date-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--teal);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
 .schedule-list { display: flex; flex-direction: column; gap: 10px; }
 
 .job-card {

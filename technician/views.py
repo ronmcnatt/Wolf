@@ -162,10 +162,20 @@ def customer_login(request):
 @role_required('technician', 'manager')
 def tech_dashboard(request):
     today = timezone.localdate()
-    jobs = Job.objects.filter(assigned_to=request.user, scheduled_date=today)
-    completed = jobs.filter(status='completed').count()
+    date_filter = request.GET.get('filter', 'today')
+
+    jobs = Job.objects.filter(assigned_to=request.user)
+    if date_filter == 'today':
+        jobs = jobs.filter(scheduled_date=today)
+    elif date_filter == 'upcoming':
+        jobs = jobs.filter(scheduled_date__gte=today)
+    # 'all' — no date restriction
+
+    jobs = jobs.order_by('scheduled_date', 'scheduled_time')
+    completed   = jobs.filter(status='completed').count()
     in_progress = jobs.filter(status='in_progress').count()
-    pending = jobs.filter(status='pending').count()
+    pending     = jobs.filter(status='pending').count()
+
     return render(request, 'technician/dashboard.html', {
         'jobs': jobs,
         'completed': completed,
@@ -173,6 +183,7 @@ def tech_dashboard(request):
         'pending': pending,
         'total': jobs.count(),
         'today': today,
+        'date_filter': date_filter,
     })
 
 
