@@ -80,14 +80,23 @@ Persists backflow test readings submitted by technicians. Fields cover:
 - Utility-specific fields: `utility_account_number` (account/meter/CCN/VCC# for that utility), `utility_reference_number` (permit #, secondary ref), `hazard_level` (low/high — used by GRU and others), `service_type` (domestic/irrigation/fire/other)
 - Future: utility API submission tracking (`utility_submitted`, `utility_submitted_at`)
 
+### ActivityLog (technician/models.py)
+Records user actions for process mining and audit. Fields: `user` (FK to User), `activity` (choice), `timestamp` (auto), `detail` (JSONField — context like job_id, customer, result), `ip_address`.
+Current activity choices: `login`, `view_job`, `submit_test_result`.
+Logging is wired in `views.py` via `log_activity(request, activity, **detail)` helper. To add a new activity: add a choice to `ActivityLog.ACTIVITIES`, call `log_activity()` in the relevant view.
+
+### SmokeTestRun / SmokeTestCase (technician/models.py)
+Stores results from each smoke test run. `SmokeTestRun` has `run_at`, `triggered_by` (FK to User), `passed`, `failed` counts. `SmokeTestCase` has `run` (FK), `name`, `label`, `category`, `passed` (bool), `detail` (text).
+Test definitions live in `technician/smoke_tests.py` — each test is a decorated function returning `(bool, str)`. To add a new test: use `@register(name, label, category)` decorator.
+
 ## Role-Based Access
 
 | Role | Can Access |
 |------|-----------|
-| Technician | Daily schedule, job detail, test submission form |
-| Operations | Job management dashboard (Jobs + Customers tabs), create/edit jobs, create/edit customers, assign technicians |
+| Technician | Open jobs (pending/in-progress from today forward by default), job detail, test submission form |
+| Operations | Job management dashboard (Jobs + Customers tabs), create/edit jobs, create/edit customers, assign technicians, CSV import |
 | Manager | Same as Operations (manager-specific reporting views planned) |
-| Admin | User management — view all users, add new users, edit roles/passwords |
+| Admin | User management, Smoke Tests tab, Process Mining tab |
 | Customer | Customer portal — view test history and upcoming service (separate login at `/tech/customer/login/`) |
 
 Login redirects automatically based on role. Unauthorized role access redirects to login.
@@ -121,6 +130,8 @@ Login redirects automatically based on role. Unauthorized role access redirects 
 | 0006 | customer_latlng | lat/lng/device_lat/device_lng on Customer |
 | 0007 | utility_fields_on_testresult | utility_account_number, utility_reference_number, hazard_level, service_type on TestResult |
 | 0008 | technician_credentials | counties (JSONField), is_licensed, license_expires on UserProfile |
+| 0009 | smoke_test_models | SmokeTestRun, SmokeTestCase |
+| 0010 | activity_log | ActivityLog |
 
 ## Sample Data (Supabase / Production)
 All one-time seed endpoints have been run against Supabase. Current state:
@@ -147,15 +158,19 @@ Full FL utility research is in `florida_utilities.csv` at project root (60+ util
 - **Dynamic utility section** on the test form: if a county maps to a known utility, a teal-bordered section appears above the Notes field showing the utility name, platform, the right account number label, optional reference/permit field, and a submission reminder note. GRU (Alachua) also shows hazard level and service type dropdowns.
 - To add a new county config: add a `('FL', 'CountyName')` entry to `UTILITY_CONFIGS` in `views.py` — no template changes needed
 
-## Next Priorities (as of April 2026)
-- [ ] Create Import Tab on the Operations Landing Page, have an upload button, preview and import
-- [ ] Identify / Handle Aquisitions in Data Model
+## Next Priorities (as of May 2026)
+- [x] Create Import page in Operations — CSV upload, preview with checkboxes, confirm import
+- [x] Activity log for process mining — login, view job, submit test wired for technician role
+- [x] Smoke test tab on admin console — Technician workflow checks, run on demand, history
+- [ ] Identify / Handle Acquisitions in Data Model
+- [ ] Add Operations/Admin/Customer workflow specs → smoke test cases for those roles
+- [ ] Expand activity logging to Operations role (create job, edit job, create customer)
 - [ ] Scheduling and dispatch system with routing optimization
 - [ ] Customer self-registers
 - [ ] Wire up utility submission: generate per-utility PDF (BSI form, Pasco form, etc.) or POST to SwiftComply/Tokay portal using stored `utility_account_number`
 - [ ] Ability to submit results to a utility, Portal and API
 - [ ] Sales role that can see estimates, ability to email to prospective customers, saved in QBO
-- [ ] Abiilty to update Estimate to an Order
+- [ ] Ability to update Estimate to an Order
 - [ ] Manager-specific reporting views (test results summary, technician performance)
 - [ ] Multi-company / multi-tenant architecture for acquired companies
 - [ ] Utility compliance report generation and submission
@@ -164,7 +179,6 @@ Full FL utility research is in `florida_utilities.csv` at project root (60+ util
 - [ ] Customer self orders a test
 - [ ] Handle Technician credentials and work schedule, PTO, service area
 - [ ] Text capability for customers
-- [ ] Activity log that show the workflow for process mining
 
 ## Device Types Supported
 | Code | Full Name |
@@ -180,6 +194,12 @@ Full FL utility research is in `florida_utilities.csv` at project root (60+ util
 - **Customer modal**: "+ New Customer" and "✎ Edit Customer" buttons open an inline modal (AJAX `POST` to `customer_save`); the CUSTOMERS JS array is updated in-place without a page reload.
 - **Leaflet maps**: both the job form and customer edit form have Property Location and Device Location maps (OpenStreetMap tiles via Leaflet 1.9.4). Dragging markers updates hidden lat/lng inputs. Job form has a "📍 Locate" button that geocodes the address via Nominatim.
 - **Operations dashboard tabs**: `?tab=jobs` (default) and `?tab=customers`. Jobs tab defaults to showing all jobs (no date filter); user can filter by date, status, or technician. Customers tab has search by business name, city, or county; shows active jobs, total jobs, last test date and pass/fail result per customer.
+- **Operations nav**: Operations and Manager users see **📥 Import** and **Log Out** as always-visible links in the top-right nav. Other roles see only Log Out.
+- **CSV Import** (`/tech/ops/import/`): two-step flow — upload CSV → preview table with per-row checkboxes (New/Existing customer badge, status pill, warnings) → confirm POST creates Customer (if new), Job, and TestResult (for completed rows with `overall_result`). Downloadable template at `/tech/ops/import/template/`. 30 supported columns across Customer, Job, and Test Result. Import summary shown as a green banner on the ops dashboard after completion.
+- **Admin console tabs**: Users | Smoke Tests | Process Mining — all three admin pages share the same tab nav.
+- **Smoke Tests tab** (`/tech/admin/smoketests/`): run on-demand via POST button; shows latest results table grouped by category (PASS/FAIL badges + detail message) and run history for last 10 runs. Test definitions in `technician/smoke_tests.py` using `@register(name, label, category)` decorator. Currently 6 Technician checks.
+- **Process Mining tab** (`/tech/admin/processmining/`): filterable activity feed (role, user, activity dropdowns — auto-submit on change). Shows last 200 events with timestamp, user, role badge, color-coded activity badge (🔑 Logged In / 👁 Viewed Job / ✓ Submitted Test), job/customer context, and IP address. Stat cards: Total Events / Today / Unique Users.
+- **Technician dashboard default**: shows open jobs (pending + in-progress) from today forward. Filter pills: Today / Open Jobs (default) / All Dates.
 - **State/County dropdowns**: FL counties are pre-populated; selecting a non-FL state clears the county list. Pattern used in job form, customer modal, and customer edit page.
 - **Dynamic utility section on test form**: when a job's state+county maps to a known utility (via `UTILITY_CONFIGS` in views.py), a teal-bordered card appears on the test form above Notes. Shows utility name, platform badge, submission instructions, and the correct account number field label for that utility (BSI CCN, JEA account #, VEPO VCC#, etc.). GRU (Alachua) additionally shows hazard level and service type selects.
 - **Technician county filter on job form**: the "Assign To" dropdown in `ops_job_form.html` is JS-driven (TECHNICIANS array from `technicians_json`). Selecting a county filters the dropdown to only technicians whose `counties` list includes that county. A coverage note "(N cover County, M hidden)" appears next to the label. If a tech's license expires within 90 days, their name shows "⚠ Exp. Mon YYYY" in amber; if expired, "✗ License expired" in red. Techs outside coverage but already assigned to a job appear with "⚠ Outside coverage area" warning.
