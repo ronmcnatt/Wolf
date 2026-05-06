@@ -276,20 +276,32 @@ def ops_dashboard(request):
     date_filter   = request.GET.get('date', '')
     status_filter = request.GET.get('status', '')
     tech_filter   = request.GET.get('tech', '')
+    show_all      = request.GET.get('show_all', '')
 
     jobs = Job.objects.select_related('assigned_to', 'customer_ref').all()
-    if date_filter:
-        jobs = jobs.filter(scheduled_date=date_filter)
-    if status_filter:
-        jobs = jobs.filter(status=status_filter)
-    if tech_filter:
-        jobs = jobs.filter(assigned_to__id=tech_filter)
 
-    technicians = User.objects.filter(profile__role='technician').order_by('first_name')
+    # Default to today + future when no explicit filters are active
+    using_default = not any([date_filter, status_filter, tech_filter, show_all])
+    if using_default:
+        jobs = jobs.filter(scheduled_date__gte=timezone.localdate())
+    else:
+        if date_filter:
+            jobs = jobs.filter(scheduled_date=date_filter)
+        if status_filter:
+            jobs = jobs.filter(status=status_filter)
+        if tech_filter:
+            jobs = jobs.filter(assigned_to__id=tech_filter)
+
+    technicians = User.objects.filter(profile__role='technician').select_related('profile').order_by('first_name')
     total       = jobs.count()
     unassigned  = jobs.filter(assigned_to__isnull=True).count()
     completed   = jobs.filter(status='completed').count()
     pending     = jobs.filter(status='pending').count()
+
+    technicians_json = json.dumps([
+        {'id': t.id, 'name': t.get_full_name() or t.username}
+        for t in technicians
+    ])
 
     # ── Customers tab ──
     csearch   = request.GET.get('csearch', '').strip()
@@ -316,14 +328,110 @@ def ops_dashboard(request):
     return render(request, 'technician/ops_dashboard.html', {
         'tab': tab,
         # jobs
-        'jobs': jobs, 'technicians': technicians,
+        'jobs': jobs, 'technicians': technicians, 'technicians_json': technicians_json,
         'date_filter': date_filter, 'status_filter': status_filter, 'tech_filter': tech_filter,
+        'using_default': using_default,
+        'today': timezone.localdate(),
         'total': total, 'unassigned': unassigned, 'completed': completed, 'pending': pending,
         # customers
         'customer_rows': customer_rows, 'csearch': csearch,
         'total_customers': Customer.objects.count(),
         # import
         'import_summary': import_summary,
+    })
+
+
+@role_required('operations', 'manager')
+def ops_auto_schedule(request):
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST required'}, status=405)
+
+    data      = json.loads(request.body)
+    date_str  = data.get('date', '').strip()
+    tech_ids  = [int(i) for i in data.get('tech_ids', [])]
+    max_trips = int(data.get('max_trips', 8))
+
+    if not date_str:
+        return JsonResponse({'ok': False, 'error': 'Date is required'})
+    if not tech_ids:
+        return JsonResponse({'ok': False, 'error': 'Select at least one technician'})
+
+    unassigned = list(
+        Job.objects.filter(scheduled_date=date_str, status='pending', assigned_to__isnull=True)
+        .select_related('customer_ref')
+    )
+    if not unassigned:
+        return JsonResponse({'ok': True, 'assigned': 0, 'skipped': 0,
+                             'message': 'No unassigned pending jobs for that date.',
+                             'details': []})
+
+    # Build per-tech state: existing assignments + county density map
+    techs = User.objects.filter(id__in=tech_ids).select_related('profile')
+    state = {}
+    for t in techs:
+        existing = list(Job.objects.filter(assigned_to=t, scheduled_date=date_str))
+        county_counts = {}
+        for j in existing:
+            county_counts[j.county] = county_counts.get(j.county, 0) + 1
+        state[t.id] = {
+            'user':          t,
+            'name':          t.get_full_name() or t.username,
+            'counties':      set(t.profile.counties or []),
+            'existing':      len(existing),
+            'total':         len(existing),
+            'county_counts': county_counts,
+            'new_jobs':      [],
+        }
+
+    assigned_count = 0
+    skipped = []
+
+    for job in unassigned:
+        eligible = [
+            s for s in state.values()
+            if (not job.county or job.county in s['counties'])
+            and s['total'] < max_trips
+        ]
+        if not eligible:
+            reason = 'capacity full' if any(
+                job.county in s['counties'] for s in state.values()
+            ) else f'no tech covers {job.county} county'
+            skipped.append({'customer': job.customer, 'reason': reason})
+            continue
+
+        # Primary sort: more existing jobs in this county = better density
+        # Tiebreak: fewer total jobs = better balance
+        eligible.sort(key=lambda s: (
+            -s['county_counts'].get(job.county, 0),
+            s['total'],
+        ))
+        best = eligible[0]
+        job.assigned_to = best['user']
+        job.save()
+
+        best['total'] += 1
+        best['county_counts'][job.county] = best['county_counts'].get(job.county, 0) + 1
+        best['new_jobs'].append(job.customer)
+        assigned_count += 1
+
+    details = [
+        {
+            'tech':     s['name'],
+            'new':      len(s['new_jobs']),
+            'existing': s['existing'],
+            'total':    s['total'],
+            'jobs':     s['new_jobs'],
+        }
+        for s in state.values()
+        if s['new_jobs']
+    ]
+
+    return JsonResponse({
+        'ok':      True,
+        'assigned': assigned_count,
+        'skipped':  len(skipped),
+        'skipped_detail': skipped,
+        'details': details,
     })
 
 

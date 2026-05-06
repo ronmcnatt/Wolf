@@ -888,3 +888,132 @@ a { color: inherit; text-decoration: none; }
 .import-summary-num { font-size: 28px; font-weight: 800; color: var(--navy); line-height: 1; }
 .import-summary-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
 .import-preview-table tr.has-warning { background: #fffbeb; }
+
+/* ── OPS JOBS TWO-COLUMN LAYOUT ── */
+.ops-jobs-layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+.ops-jobs-main { flex: 1; min-width: 0; }
+
+/* ── AUTO-SCHEDULE PANEL ── */
+.auto-sched-panel {
+  width: 272px;
+  flex-shrink: 0;
+  background: var(--white);
+  border: 1px solid var(--mid);
+  border-radius: 12px;
+  overflow: hidden;
+  position: sticky;
+  top: 80px;
+}
+.auto-sched-header {
+  background: var(--navy);
+  padding: 14px 18px;
+}
+.auto-sched-title {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--white);
+}
+.auto-sched-subtitle {
+  display: block;
+  font-size: 11px;
+  color: rgba(255,255,255,0.6);
+  margin-top: 2px;
+}
+.auto-sched-body { padding: 16px; }
+.auto-sched-field { margin-bottom: 14px; }
+.auto-sched-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+.auto-sched-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--mid);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--navy);
+  background: var(--white);
+}
+.auto-sched-input:focus { outline: none; border-color: var(--teal); }
+.auto-sched-btn { width: 100%; justify-content: center; font-size: 14px; padding: 10px; }
+
+/* ── MULTI-SELECT DROPDOWN ── */
+.multi-select-wrap { position: relative; }
+.multi-select-trigger {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--mid);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--navy);
+  background: var(--white);
+  cursor: pointer;
+  text-align: left;
+}
+.multi-select-trigger:hover { border-color: var(--teal); }
+.multi-select-arrow { font-size: 10px; color: var(--muted); }
+.multi-select-panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0; right: 0;
+  background: var(--white);
+  border: 1px solid var(--mid);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+  z-index: 100;
+  overflow: hidden;
+}
+.multi-select-panel.open { display: block; }
+.multi-select-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--navy);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.multi-select-item:hover { background: var(--light); }
+.multi-select-item input { width: 15px; height: 15px; accent-color: var(--teal); }
+
+/* ── SCHEDULE RESULT ── */
+.sched-result-ok {
+  font-size: 13px; font-weight: 600; color: var(--success);
+  background: var(--success-bg); border: 1px solid #86efac;
+  border-radius: 6px; padding: 8px 12px; margin-bottom: 10px;
+}
+.sched-result-error {
+  font-size: 13px; color: var(--danger);
+  background: var(--danger-bg); border: 1px solid #fca5a5;
+  border-radius: 6px; padding: 8px 12px;
+}
+.sched-result-info {
+  font-size: 13px; color: var(--muted);
+  background: var(--light); border: 1px solid var(--mid);
+  border-radius: 6px; padding: 8px 12px;
+}
+.sched-result-tech {
+  font-size: 12px; padding: 6px 0; border-bottom: 1px solid var(--light);
+}
+.sched-result-tech-name { font-weight: 600; color: var(--navy); display: block; }
+.sched-result-tech-count { font-size: 11px; color: var(--teal); display: block; margin-bottom: 2px; }
+.sched-result-job { color: var(--muted); font-size: 11px; padding-left: 4px; }
+.sched-result-skipped {
+  margin-top: 8px; font-size: 11px; color: var(--warning);
+  background: var(--warning-bg); border-radius: 6px; padding: 8px 10px;
+}

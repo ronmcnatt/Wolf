@@ -128,104 +128,276 @@
   {% else %}
   <!-- ═══════════════════════════════ JOBS TAB ════════════════════════════════ -->
 
-  <!-- STATS -->
-  <div class="stats-row">
-    <div class="stat-card total"><div class="num">{{ total }}</div><div class="lbl">Showing</div></div>
-    <div class="stat-card waiting"><div class="num">{{ unassigned }}</div><div class="lbl">Unassigned</div></div>
-    <div class="stat-card active"><div class="num">{{ pending }}</div><div class="lbl">Pending</div></div>
-    <div class="stat-card done"><div class="num">{{ completed }}</div><div class="lbl">Completed</div></div>
-  </div>
+  <div class="ops-jobs-layout">
 
-  <!-- FILTERS -->
-  <form method="GET" action="{% url 'ops_dashboard' %}" class="filter-bar">
-    <input type="hidden" name="tab" value="jobs">
-    <div class="filter-group">
-      <label>Date</label>
-      <input type="date" name="date" value="{{ date_filter }}">
-    </div>
-    <div class="filter-group">
-      <label>Status</label>
-      <select name="status">
-        <option value="">All Statuses</option>
-        <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
-        <option value="in_progress" {% if status_filter == 'in_progress' %}selected{% endif %}>In Progress</option>
-        <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
-        <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
-      </select>
-    </div>
-    <div class="filter-group">
-      <label>Technician</label>
-      <select name="tech">
-        <option value="">All Technicians</option>
-        {% for tech in technicians %}
-        <option value="{{ tech.id }}" {% if tech_filter == tech.id|stringformat:"s" %}selected{% endif %}>
-          {{ tech.get_full_name|default:tech.username }}
-        </option>
-        {% endfor %}
-      </select>
-    </div>
-    <button type="submit" class="btn btn-outline">Filter</button>
-    <a href="{% url 'ops_dashboard' %}" class="btn btn-outline">Clear</a>
-  </form>
+    <!-- LEFT: stats + filters + table -->
+    <div class="ops-jobs-main">
 
-  <!-- JOB TABLE -->
-  {% if jobs %}
-  <div class="ops-table-wrap">
-    <table class="ops-table">
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Time</th>
-          <th>Customer</th>
-          <th>Address</th>
-          <th>Device</th>
-          <th>Assigned To</th>
-          <th>Status</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for job in jobs %}
-        <tr class="job-row-{{ job.status }}">
-          <td style="white-space:nowrap; color:var(--muted); font-size:13px;">{{ job.scheduled_date|date:"M j" }}</td>
-          <td class="td-time">{{ job.scheduled_time|time:"g:i A" }}</td>
-          <td class="td-customer">
-            {{ job.customer }}
-            {% if job.county %}<div style="font-size:11px;color:var(--muted);">{{ job.county }} Co.</div>{% endif %}
-          </td>
-          <td class="td-address">{{ job.address }}</td>
-          <td><span class="badge badge-device">{{ job.device_type }}{% if job.device_size %} · {{ job.device_size }}{% endif %}</span></td>
-          <td>
-            {% if job.assigned_to %}
-              {{ job.assigned_to.get_full_name|default:job.assigned_to.username }}
-            {% else %}
-              <span style="color:var(--warning); font-weight:600;">Unassigned</span>
-            {% endif %}
-          </td>
-          <td>
-            <span class="badge badge-{{ job.status }}">
-              {% if job.status == 'completed' %}✓ Completed
-              {% elif job.status == 'in_progress' %}● In Progress
-              {% elif job.status == 'cancelled' %}✕ Cancelled
-              {% else %}○ Pending{% endif %}
-            </span>
-          </td>
-          <td>
-            <a href="{% url 'ops_job_edit' job.id %}" class="btn btn-outline btn-sm">Edit</a>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% else %}
-  <div style="text-align:center; padding:60px 0; color:var(--muted);">
-    <div style="font-size:48px; margin-bottom:16px;">📋</div>
-    <p style="font-size:16px; font-weight:600;">No jobs found for the selected filters.</p>
-    <a href="{% url 'ops_job_new' %}" class="btn btn-primary" style="margin-top:16px;">Create First Job</a>
-  </div>
-  {% endif %}
+      <!-- STATS -->
+      <div class="stats-row">
+        <div class="stat-card total"><div class="num">{{ total }}</div><div class="lbl">Showing</div></div>
+        <div class="stat-card waiting"><div class="num">{{ unassigned }}</div><div class="lbl">Unassigned</div></div>
+        <div class="stat-card active"><div class="num">{{ pending }}</div><div class="lbl">Pending</div></div>
+        <div class="stat-card done"><div class="num">{{ completed }}</div><div class="lbl">Completed</div></div>
+      </div>
+
+      <!-- FILTERS -->
+      <form method="GET" action="{% url 'ops_dashboard' %}" class="filter-bar">
+        <input type="hidden" name="tab" value="jobs">
+        <div class="filter-group">
+          <label>Date</label>
+          <input type="date" name="date" value="{{ date_filter }}">
+        </div>
+        <div class="filter-group">
+          <label>Status</label>
+          <select name="status">
+            <option value="">All Statuses</option>
+            <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+            <option value="in_progress" {% if status_filter == 'in_progress' %}selected{% endif %}>In Progress</option>
+            <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+            <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Technician</label>
+          <select name="tech">
+            <option value="">All Technicians</option>
+            {% for tech in technicians %}
+            <option value="{{ tech.id }}" {% if tech_filter == tech.id|stringformat:"s" %}selected{% endif %}>
+              {{ tech.get_full_name|default:tech.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-outline">Filter</button>
+        {% if using_default %}
+        <a href="?tab=jobs&show_all=1" class="btn btn-outline">Show All Dates</a>
+        {% else %}
+        <a href="{% url 'ops_dashboard' %}" class="btn btn-outline">Clear</a>
+        {% endif %}
+      </form>
+      {% if using_default %}
+      <p style="font-size:12px; color:var(--muted); margin-bottom:12px;">
+        Showing today &amp; future — <a href="?tab=jobs&show_all=1" style="color:var(--teal);">show all dates</a>
+      </p>
+      {% endif %}
+
+      <!-- JOB TABLE -->
+      {% if jobs %}
+      <div class="ops-table-wrap">
+        <table class="ops-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Customer</th>
+              <th>Address</th>
+              <th>Device</th>
+              <th>Assigned To</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for job in jobs %}
+            <tr class="job-row-{{ job.status }}">
+              <td style="white-space:nowrap; color:var(--muted); font-size:13px;">{{ job.scheduled_date|date:"M j" }}</td>
+              <td class="td-time">{{ job.scheduled_time|time:"g:i A" }}</td>
+              <td class="td-customer">
+                {{ job.customer }}
+                {% if job.county %}<div style="font-size:11px;color:var(--muted);">{{ job.county }} Co.</div>{% endif %}
+              </td>
+              <td class="td-address">{{ job.address }}</td>
+              <td><span class="badge badge-device">{{ job.device_type }}{% if job.device_size %} · {{ job.device_size }}{% endif %}</span></td>
+              <td>
+                {% if job.assigned_to %}
+                  {{ job.assigned_to.get_full_name|default:job.assigned_to.username }}
+                {% else %}
+                  <span style="color:var(--warning); font-weight:600;">Unassigned</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="badge badge-{{ job.status }}">
+                  {% if job.status == 'completed' %}✓ Completed
+                  {% elif job.status == 'in_progress' %}● In Progress
+                  {% elif job.status == 'cancelled' %}✕ Cancelled
+                  {% else %}○ Pending{% endif %}
+                </span>
+              </td>
+              <td>
+                <a href="{% url 'ops_job_edit' job.id %}" class="btn btn-outline btn-sm">Edit</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div style="text-align:center; padding:60px 0; color:var(--muted);">
+        <div style="font-size:48px; margin-bottom:16px;">📋</div>
+        <p style="font-size:16px; font-weight:600;">No jobs found for the selected filters.</p>
+        <a href="{% url 'ops_job_new' %}" class="btn btn-primary" style="margin-top:16px;">Create First Job</a>
+      </div>
+      {% endif %}
+
+    </div><!-- /ops-jobs-main -->
+
+    <!-- RIGHT: auto-schedule panel -->
+    <div class="auto-sched-panel">
+      <div class="auto-sched-header">
+        <span class="auto-sched-title">Auto Schedule</span>
+        <span class="auto-sched-subtitle">Assign unassigned jobs by route density</span>
+      </div>
+
+      <div class="auto-sched-body">
+        <div class="auto-sched-field">
+          <label class="auto-sched-label">Date to Schedule</label>
+          <input type="date" id="schedDate" value="{{ today|date:'Y-m-d' }}"
+                 class="auto-sched-input">
+        </div>
+
+        <div class="auto-sched-field">
+          <label class="auto-sched-label">Technicians</label>
+          <div class="multi-select-wrap" id="techMultiWrap">
+            <button type="button" class="multi-select-trigger" onclick="toggleMultiSelect(event)">
+              <span id="techMultiLabel">Select technicians…</span>
+              <span class="multi-select-arrow">▾</span>
+            </button>
+            <div class="multi-select-panel" id="techMultiPanel">
+              {% for tech in technicians %}
+              <label class="multi-select-item">
+                <input type="checkbox" class="tech-checkbox" value="{{ tech.id }}"
+                       onchange="updateTechLabel()">
+                {{ tech.get_full_name|default:tech.username }}
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <div class="auto-sched-field">
+          <label class="auto-sched-label">Max Trips Per Technician</label>
+          <select id="maxTrips" class="auto-sched-input">
+            {% for n in "5678910111213141516"|make_list %}{% endfor %}
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8" selected>8</option>
+            <option value="9">9</option>
+            <option value="10">10</option>
+            <option value="11">11</option>
+            <option value="12">12</option>
+            <option value="13">13</option>
+            <option value="14">14</option>
+            <option value="15">15</option>
+          </select>
+        </div>
+
+        <button class="btn btn-primary auto-sched-btn" onclick="runAutoSchedule()">
+          ⚡ Auto Schedule
+        </button>
+
+        <div id="schedResult" style="display:none; margin-top:16px;"></div>
+      </div>
+    </div><!-- /auto-sched-panel -->
+
+  </div><!-- /ops-jobs-layout -->
 
   {% endif %}
 </div>
+
+<script>
+const AUTO_SCHEDULE_URL = '{% url "ops_auto_schedule" %}';
+const CSRF_TOKEN = '{{ csrf_token }}';
+
+// ── Multi-select dropdown ──
+function toggleMultiSelect(e) {
+  e.stopPropagation();
+  document.getElementById('techMultiPanel').classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+  var wrap = document.getElementById('techMultiWrap');
+  if (wrap && !wrap.contains(e.target)) {
+    document.getElementById('techMultiPanel').classList.remove('open');
+  }
+});
+function updateTechLabel() {
+  var checked = document.querySelectorAll('.tech-checkbox:checked');
+  var label = document.getElementById('techMultiLabel');
+  if (checked.length === 0) {
+    label.textContent = 'Select technicians…';
+  } else if (checked.length === 1) {
+    label.textContent = checked[0].closest('label').textContent.trim();
+  } else {
+    label.textContent = checked.length + ' technicians selected';
+  }
+}
+
+// ── Auto-schedule ──
+function runAutoSchedule() {
+  var date = document.getElementById('schedDate').value;
+  var techIds = Array.from(document.querySelectorAll('.tech-checkbox:checked')).map(c => c.value);
+  var maxTrips = parseInt(document.getElementById('maxTrips').value);
+  var resultDiv = document.getElementById('schedResult');
+
+  if (!date) { showSchedResult('error', 'Please select a date.'); return; }
+  if (!techIds.length) { showSchedResult('error', 'Select at least one technician.'); return; }
+
+  var btn = document.querySelector('.auto-sched-btn');
+  btn.disabled = true;
+  btn.textContent = 'Scheduling…';
+
+  fetch(AUTO_SCHEDULE_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN},
+    body: JSON.stringify({date: date, tech_ids: techIds, max_trips: maxTrips})
+  })
+  .then(r => r.json())
+  .then(data => {
+    btn.disabled = false;
+    btn.textContent = '⚡ Auto Schedule';
+    if (!data.ok) { showSchedResult('error', data.error); return; }
+    if (data.assigned === 0) {
+      showSchedResult('info', data.message || 'No jobs were assigned.');
+      return;
+    }
+    var html = '<div class="sched-result-ok">';
+    html += '<strong>✓ ' + data.assigned + ' job' + (data.assigned !== 1 ? 's' : '') + ' assigned</strong>';
+    if (data.skipped > 0) html += ' · ' + data.skipped + ' skipped';
+    html += '</div>';
+    data.details.forEach(function(d) {
+      html += '<div class="sched-result-tech">';
+      html += '<span class="sched-result-tech-name">' + d.tech + '</span>';
+      html += '<span class="sched-result-tech-count">' + d.new + ' new · ' + d.total + ' total</span>';
+      d.jobs.forEach(function(j) {
+        html += '<div class="sched-result-job">· ' + j + '</div>';
+      });
+      html += '</div>';
+    });
+    if (data.skipped_detail && data.skipped_detail.length) {
+      html += '<div class="sched-result-skipped">';
+      html += '<strong>Skipped (' + data.skipped + '):</strong>';
+      data.skipped_detail.forEach(function(s) {
+        html += '<div>· ' + s.customer + ' — ' + s.reason + '</div>';
+      });
+      html += '</div>';
+    }
+    html += '<a href="" class="btn btn-outline btn-sm" style="margin-top:12px; display:inline-block;" onclick="location.reload(); return false;">↻ Refresh Table</a>';
+    resultDiv.innerHTML = html;
+    resultDiv.style.display = 'block';
+  })
+  .catch(function(err) {
+    btn.disabled = false;
+    btn.textContent = '⚡ Auto Schedule';
+    showSchedResult('error', 'Request failed: ' + err);
+  });
+}
+
+function showSchedResult(type, msg) {
+  var div = document.getElementById('schedResult');
+  var cls = type === 'error' ? 'sched-result-error' : 'sched-result-info';
+  div.innerHTML = '<div class="' + cls + '">' + msg + '</div>';
+  div.style.display = 'block';
+}
+</script>
 {% endblock %}
