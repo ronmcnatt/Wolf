@@ -1,0 +1,141 @@
+{% extends "technician/base.html" %}
+
+{% block title %}Smoke Tests — Wolf Backflow{% endblock %}
+
+{% block content %}
+<div class="tech-page">
+
+  <div class="tech-page-header">
+    <div>
+      <h1>Admin Console</h1>
+      <p>System health checks and user management</p>
+    </div>
+  </div>
+
+  <!-- ADMIN TABS -->
+  <nav class="tab-nav">
+    <a href="{% url 'admin_users' %}" class="tab-link">Users</a>
+    <a href="{% url 'admin_smoke_tests' %}" class="tab-link active">Smoke Tests</a>
+  </nav>
+
+  <!-- SUMMARY STATS -->
+  {% if latest %}
+  <div class="stats-row" style="margin-bottom: 24px;">
+    <div class="stat-card {% if latest.failed == 0 %}done{% else %}waiting{% endif %}">
+      <div class="num">{% if latest.failed == 0 %}✓{% else %}✗{% endif %}</div>
+      <div class="lbl">Last Run</div>
+    </div>
+    <div class="stat-card done">
+      <div class="num">{{ latest.passed }}</div>
+      <div class="lbl">Passed</div>
+    </div>
+    <div class="stat-card {% if latest.failed > 0 %}waiting{% else %}done{% endif %}">
+      <div class="num">{{ latest.failed }}</div>
+      <div class="lbl">Failed</div>
+    </div>
+    <div class="stat-card total">
+      <div class="num">{{ latest.run_at|date:"M j" }}</div>
+      <div class="lbl">{{ latest.run_at|date:"g:i A" }}</div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- RUN BUTTON -->
+  <div style="display:flex; align-items:center; gap:16px; margin-bottom:24px;">
+    <form method="post">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-primary">▶ Run All Tests</button>
+    </form>
+    {% if latest %}
+    <span style="font-size:13px; color:var(--muted);">
+      Last run by {{ latest.triggered_by.get_full_name|default:latest.triggered_by.username }}
+      on {{ latest.run_at|date:"N j, Y" }} at {{ latest.run_at|date:"g:i A" }}
+    </span>
+    {% else %}
+    <span style="font-size:13px; color:var(--muted);">No runs yet — click Run All Tests to check system health.</span>
+    {% endif %}
+  </div>
+
+  <!-- LATEST RESULTS TABLE -->
+  {% if latest %}
+  <h2 style="font-size:16px; font-weight:700; color:var(--navy); margin-bottom:12px;">Latest Results</h2>
+  <div class="ops-table-wrap" style="margin-bottom:40px;">
+    <table class="ops-table">
+      <thead>
+        <tr>
+          <th style="width:90px;">Status</th>
+          <th>Test</th>
+          <th>Category</th>
+          <th>Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% regroup latest.cases.all by category as category_list %}
+        {% for group in category_list %}
+        <tr>
+          <td colspan="4" style="background:var(--light); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); padding:8px 16px;">
+            {{ group.grouper }}
+          </td>
+        </tr>
+        {% for case in group.list %}
+        <tr>
+          <td>
+            {% if case.passed %}
+            <span style="color:var(--success); font-weight:700; font-size:13px;">✓ PASS</span>
+            {% else %}
+            <span style="color:var(--danger); font-weight:700; font-size:13px;">✗ FAIL</span>
+            {% endif %}
+          </td>
+          <td style="font-weight:600; color:var(--navy);">{{ case.label }}</td>
+          <td style="font-size:12px; color:var(--muted);">{{ case.category }}</td>
+          <td style="font-size:12px; color:{% if case.passed %}var(--muted){% else %}var(--danger){% endif %};">
+            {{ case.detail }}
+          </td>
+        </tr>
+        {% endfor %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- RUN HISTORY -->
+  {% if runs|length > 1 %}
+  <h2 style="font-size:16px; font-weight:700; color:var(--navy); margin-bottom:12px;">Run History</h2>
+  <div class="ops-table-wrap">
+    <table class="ops-table">
+      <thead>
+        <tr>
+          <th>Date &amp; Time</th>
+          <th>Triggered By</th>
+          <th>Passed</th>
+          <th>Failed</th>
+          <th>Overall</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for run in runs %}
+        <tr {% if forloop.first %}style="background:rgba(0,168,168,0.04);"{% endif %}>
+          <td style="font-weight:{% if forloop.first %}600{% else %}400{% endif %}; color:var(--navy);">
+            {{ run.run_at|date:"N j, Y" }} at {{ run.run_at|date:"g:i A" }}
+            {% if forloop.first %}<span style="font-size:11px; color:var(--teal); margin-left:6px;">latest</span>{% endif %}
+          </td>
+          <td style="color:var(--muted);">{{ run.triggered_by.get_full_name|default:run.triggered_by.username|default:"—" }}</td>
+          <td style="color:var(--success); font-weight:600;">{{ run.passed }}</td>
+          <td style="color:{% if run.failed > 0 %}var(--danger){% else %}var(--muted){% endif %}; font-weight:{% if run.failed > 0 %}600{% else %}400{% endif %};">{{ run.failed }}</td>
+          <td>
+            {% if run.failed == 0 %}
+            <span style="color:var(--success); font-weight:700;">✓ All passed</span>
+            {% else %}
+            <span style="color:var(--danger); font-weight:700;">✗ {{ run.failed }} failed</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

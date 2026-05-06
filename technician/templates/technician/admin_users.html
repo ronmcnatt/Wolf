@@ -8,11 +8,17 @@
 
   <div class="tech-page-header">
     <div>
-      <h1>User Management</h1>
-      <p>All portal users and their assigned roles</p>
+      <h1>Admin Console</h1>
+      <p>System health checks and user management</p>
     </div>
     <a href="{% url 'admin_user_new' %}" class="btn btn-primary">+ Add User</a>
   </div>
+
+  <!-- ADMIN TABS -->
+  <nav class="tab-nav">
+    <a href="{% url 'admin_users' %}" class="tab-link active">Users</a>
+    <a href="{% url 'admin_smoke_tests' %}" class="tab-link">Smoke Tests</a>
+  </nav>
 
   <!-- STATS -->
   <div class="stats-row">

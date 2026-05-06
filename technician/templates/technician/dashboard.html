@@ -11,8 +11,8 @@
       <h1>Today's Schedule</h1>
       <p>{{ today|date:"l, F j, Y" }} &nbsp;·&nbsp; {{ request.user.get_full_name }}</p>
       {% elif date_filter == 'upcoming' %}
-      <h1>Upcoming Schedule</h1>
-      <p>{{ today|date:"F j, Y" }} and beyond &nbsp;·&nbsp; {{ request.user.get_full_name }}</p>
+      <h1>Open Jobs</h1>
+      <p>Pending &amp; in-progress from {{ today|date:"M j" }} forward &nbsp;·&nbsp; {{ request.user.get_full_name }}</p>
       {% else %}
       <h1>All Jobs</h1>
       <p>Complete history &nbsp;·&nbsp; {{ request.user.get_full_name }}</p>
@@ -28,7 +28,7 @@
     </a>
     <a href="?filter=upcoming"
        class="schedule-filter-pill {% if date_filter == 'upcoming' %}active{% endif %}">
-      Today &amp; Future
+      Open Jobs
     </a>
     <a href="?filter=all"
        class="schedule-filter-pill {% if date_filter == 'all' %}active{% endif %}">
@@ -76,8 +76,8 @@
     <p style="font-size:16px; font-weight:600;">No jobs scheduled for today.</p>
     <p style="font-size:13px; margin-top:6px;">Check with your operations team for assignments.</p>
     {% elif date_filter == 'upcoming' %}
-    <p style="font-size:16px; font-weight:600;">No upcoming jobs assigned.</p>
-    <p style="font-size:13px; margin-top:6px;">Check with your operations team for assignments.</p>
+    <p style="font-size:16px; font-weight:600;">No open jobs from today forward.</p>
+    <p style="font-size:13px; margin-top:6px;">Check with your operations team for assignments, or view All Dates to see completed work.</p>
     {% else %}
     <p style="font-size:16px; font-weight:600;">No jobs found.</p>
     {% endif %}

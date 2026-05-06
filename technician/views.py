@@ -162,14 +162,14 @@ def customer_login(request):
 @role_required('technician', 'manager')
 def tech_dashboard(request):
     today = timezone.localdate()
-    date_filter = request.GET.get('filter', 'today')
+    date_filter = request.GET.get('filter', 'upcoming')
 
     jobs = Job.objects.filter(assigned_to=request.user)
     if date_filter == 'today':
         jobs = jobs.filter(scheduled_date=today)
     elif date_filter == 'upcoming':
-        jobs = jobs.filter(scheduled_date__gte=today)
-    # 'all' — no date restriction
+        jobs = jobs.filter(scheduled_date__gte=today, status__in=('pending', 'in_progress'))
+    # 'all' — no date or status restriction
 
     jobs = jobs.order_by('scheduled_date', 'scheduled_time')
     completed   = jobs.filter(status='completed').count()
@@ -825,6 +825,23 @@ def admin_user_form(request, user_id=None):
         'ROLES': UserProfile.ROLES,
         'FL_COUNTIES': FL_COUNTIES,
         'error': error,
+    })
+
+
+# ── Smoke tests ───────────────────────────────────────────────────────────────
+
+@role_required('admin')
+def admin_smoke_tests(request):
+    from . import smoke_tests as st
+    from .models import SmokeTestRun
+    if request.method == 'POST':
+        st.run_all(triggered_by=request.user)
+        return redirect('admin_smoke_tests')
+    runs = SmokeTestRun.objects.prefetch_related('cases').order_by('-run_at')[:10]
+    latest = runs[0] if runs else None
+    return render(request, 'technician/admin_smoke_tests.html', {
+        'latest': latest,
+        'runs': runs,
     })
 
 

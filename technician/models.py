@@ -172,3 +172,33 @@ class TestResult(models.Model):
 
     def __str__(self):
         return f"{self.customer} — {self.test_date} — {self.overall_result.upper()}"
+
+
+class SmokeTestRun(models.Model):
+    run_at = models.DateTimeField(auto_now_add=True)
+    triggered_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name='smoke_runs'
+    )
+    passed = models.IntegerField(default=0)
+    failed = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['-run_at']
+
+    def __str__(self):
+        return f"Run {self.run_at:%Y-%m-%d %H:%M} — {self.passed}P/{self.failed}F"
+
+
+class SmokeTestCase(models.Model):
+    run = models.ForeignKey(SmokeTestRun, related_name='cases', on_delete=models.CASCADE)
+    name = models.CharField(max_length=100)
+    label = models.CharField(max_length=200)
+    category = models.CharField(max_length=50)
+    passed = models.BooleanField()
+    detail = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['category', 'name']
+
+    def __str__(self):
+        return f"{'PASS' if self.passed else 'FAIL'} — {self.label}"

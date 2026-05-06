@@ -163,6 +163,8 @@ Full FL utility research is in `florida_utilities.csv` at project root (60+ util
 - [ ] Integrate Repairs and Parts Inventory
 - [ ] Customer self orders a test
 - [ ] Handle Technician credentials and work schedule, PTO, service area
+- [ ] Text capability for customers
+- [ ] Activity log that show the workflow for process mining
 
 ## Device Types Supported
 | Code | Full Name |
