@@ -39,4 +39,5 @@ urlpatterns = [
     path('seedhistory/', views.seed_history, name='seed_history'),
     path('reassignhistory/', views.reassign_history, name='reassign_history'),
     path('seedutilityfields/', views.seed_utility_fields, name='seed_utility_fields'),
+    path('seedupcomingjobs/', views.seed_upcoming_jobs, name='seed_upcoming_jobs'),
 ]

@@ -762,6 +762,92 @@ def reseed_customer_coords(request):
     return JsonResponse({'ok': True, 'updated': updated})
 
 
+def seed_upcoming_jobs(request):
+    """Create 45 pending jobs across May 6-8 2026 in Duval, St. Johns, Clay counties."""
+    if Job.objects.filter(scheduled_date='2026-05-06', customer='Riverside Towers Apartments').exists():
+        return JsonResponse({'ok': True, 'msg': 'Already seeded — skipping'})
+
+    # (customer, address, city, county, date, time, device_type, device_size)
+    JOBS = [
+        # ── May 6 ─────────────────────────────────────────────────────────────
+        ('Riverside Towers Apartments',   '1500 Riverside Ave',          'Jacksonville',      'Duval',     '2026-05-06', '08:00', 'RPZ',  '1"'),
+        ('Baymeadows Corporate Center',   '7545 Baymeadows Way',         'Jacksonville',      'Duval',     '2026-05-06', '08:30', 'DCVA', '2"'),
+        ('Murray Hill Theatre',           '932 Edgewood Ave S',          'Jacksonville',      'Duval',     '2026-05-06', '09:00', 'RPZ',  '3/4"'),
+        ('Main Street Hotel Jacksonville','565 Main St',                 'Jacksonville',      'Duval',     '2026-05-06', '09:30', 'RPZ',  '2"'),
+        ('Regency Square Apartments',     '8800 Baymeadows Rd',          'Jacksonville',      'Duval',     '2026-05-06', '10:00', 'DCVA', '1"'),
+        ('Gateway Town Center',           '5210 Norwood Ave',            'Jacksonville',      'Duval',     '2026-05-06', '10:30', 'RPZ',  '1-1/2"'),
+        ('Baptist Medical Center South',  '14550 St. Augustine Rd',      'Jacksonville',      'Duval',     '2026-05-06', '11:00', 'RPZ',  '2"'),
+        ('Avenues Walk Apartments',       '10300 Southside Blvd',        'Jacksonville',      'Duval',     '2026-05-06', '11:30', 'DCVA', '1"'),
+        ('St. Augustine Marriott',        '116 San Marco Ave',           'St. Augustine',     'St. Johns', '2026-05-06', '12:00', 'RPZ',  '1"'),
+        ('World Golf Village Resort',     '2 World Golf Pl',             'St. Augustine',     'St. Johns', '2026-05-06', '12:30', 'RPZ',  '1-1/2"'),
+        ('Ponte Vedra Beach Club',        '100 Ponte Vedra Blvd',        'Ponte Vedra Beach', 'St. Johns', '2026-05-06', '13:00', 'RPZ',  '1"'),
+        ('St. Johns Golf & Country Club', '775 Hana Rd',                 'St. Augustine',     'St. Johns', '2026-05-06', '13:30', 'DCVA', '1"'),
+        ('Orange Park Medical Center',    '2001 Kingsley Ave',           'Orange Park',       'Clay',      '2026-05-06', '14:00', 'DCVA', '1-1/2"'),
+        ('Fleming Island Town Center',    '1570 Town Center Blvd',       'Fleming Island',    'Clay',      '2026-05-06', '14:30', 'DCVA', '2"'),
+        ('Oakleaf Town Center',           '9735 Crosshill Blvd',         'Jacksonville',      'Clay',      '2026-05-06', '15:00', 'RPZ',  '1"'),
+        # ── May 7 ─────────────────────────────────────────────────────────────
+        ('Hotel Indigo Jacksonville',     '9840 Tapestry Park Cir',      'Jacksonville',      'Duval',     '2026-05-07', '08:00', 'RPZ',  '1"'),
+        ('Memorial Hospital Jacksonville','3625 University Blvd S',      'Jacksonville',      'Duval',     '2026-05-07', '08:30', 'DCVA', '3"'),
+        ('Jacksonville Zoo & Gardens',    '370 Zoo Pkwy',                'Jacksonville',      'Duval',     '2026-05-07', '09:00', 'RPZ',  '2"'),
+        ('The Strand Apartments',         '4700 Beach Blvd',             'Jacksonville',      'Duval',     '2026-05-07', '09:30', 'RPZ',  '1"'),
+        ('AutoNation Ford Jacksonville',  '10680 Philips Hwy',           'Jacksonville',      'Duval',     '2026-05-07', '10:00', 'DCVA', '1-1/2"'),
+        ('Mandarin Publix',               '11700 San Jose Blvd',         'Jacksonville',      'Duval',     '2026-05-07', '10:30', 'RPZ',  '3/4"'),
+        ('Town Center Marriott',          '4670 Town Center Pkwy',       'Jacksonville',      'Duval',     '2026-05-07', '11:00', 'DCVA', '2"'),
+        ('YMCA Southside',                '11111 Old St Augustine Rd',   'Jacksonville',      'Duval',     '2026-05-07', '11:30', 'RPZ',  '1"'),
+        ('TPC Sawgrass',                  '110 Championship Way',        'Ponte Vedra Beach', 'St. Johns', '2026-05-07', '12:00', 'RPZ',  '1-1/2"'),
+        ('Nocatee Town Center',           '250 Town Center Blvd',        'Ponte Vedra',       'St. Johns', '2026-05-07', '12:30', 'RPZ',  '1"'),
+        ('Vilano Beach Motel',            '750 A1A Beach Blvd',          'St. Augustine',     'St. Johns', '2026-05-07', '13:00', 'RPZ',  '3/4"'),
+        ('St. Augustine Premium Outlets', '2700 State Rd 16',            'St. Augustine',     'St. Johns', '2026-05-07', '13:30', 'DCVA', '1"'),
+        ('Middleburg High School',        '4250 Section St',             'Middleburg',        'Clay',      '2026-05-07', '14:00', 'DCVA', '1"'),
+        ('Orange Park Brewing Company',   '148 Blanding Blvd',           'Orange Park',       'Clay',      '2026-05-07', '14:30', 'RPZ',  '3/4"'),
+        ('Clay County Administration',    '477 Houston St',              'Green Cove Springs','Clay',      '2026-05-07', '15:00', 'RPZ',  '1"'),
+        # ── May 8 ─────────────────────────────────────────────────────────────
+        ('Deerwood Park Office Complex',  '10150 Deerwood Park Blvd',    'Jacksonville',      'Duval',     '2026-05-08', '08:00', 'DCVA', '2"'),
+        ('Jacksonville Executive Airport','14201 Pecan Park Rd',         'Jacksonville',      'Duval',     '2026-05-08', '08:30', 'RPZ',  '1-1/2"'),
+        ('Ortega River Club',             '4457 Ortega Blvd',            'Jacksonville',      'Duval',     '2026-05-08', '09:00', 'RPZ',  '1"'),
+        ('River City Brewing Company',    '835 Museum Cir',              'Jacksonville',      'Duval',     '2026-05-08', '09:30', 'RPZ',  '1"'),
+        ('Lakeshore Inn',                 '8001 Lakeshore Dr',           'Jacksonville',      'Duval',     '2026-05-08', '10:00', 'DCVA', '1"'),
+        ('Atlantic Beach Publix',         '395 Atlantic Blvd',           'Atlantic Beach',    'Duval',     '2026-05-08', '10:30', 'RPZ',  '3/4"'),
+        ('Deerwood Country Club',         '10239 Golf Club Dr',          'Jacksonville',      'Duval',     '2026-05-08', '11:00', 'RPZ',  '2"'),
+        ('Southside Walmart Supercenter', '10991 San Jose Blvd',         'Jacksonville',      'Duval',     '2026-05-08', '11:30', 'DCVA', '1-1/2"'),
+        ('Anastasia Island Hampton Inn',  '105 Anastasia Blvd',          'St. Augustine',     'St. Johns', '2026-05-08', '12:00', 'DCVA', '1"'),
+        ('Palencia Golf Club',            '600 Palencia Club Dr',        'St. Augustine',     'St. Johns', '2026-05-08', '12:30', 'RPZ',  '1-1/2"'),
+        ('Castillo de San Marcos',        '1 S Castillo Dr',             'St. Augustine',     'St. Johns', '2026-05-08', '13:00', 'RPZ',  '3/4"'),
+        ('Vilano Beach Apartments',       '280 Vilano Rd',               'St. Augustine',     'St. Johns', '2026-05-08', '13:30', 'RPZ',  '1"'),
+        ('Hibernia Medical Center',       '1781 Town Park Blvd',         'Orange Park',       'Clay',      '2026-05-08', '14:00', 'RPZ',  '1"'),
+        ('Black Creek Elementary School', '1770 Black Creek Dr',         'Orange Park',       'Clay',      '2026-05-08', '14:30', 'DCVA', '1"'),
+        ('Blanding Blvd Shopping Center', '1985 Blanding Blvd',          'Middleburg',        'Clay',      '2026-05-08', '15:00', 'DCVA', '1"'),
+    ]
+
+    created = 0
+    for (cust_name, address, city, county, date, time,
+         device_type, device_size) in JOBS:
+        customer, _ = Customer.objects.get_or_create(
+            business_name=cust_name,
+            defaults={
+                'address': address, 'city': city,
+                'state': 'FL', 'county': county,
+            },
+        )
+        if not Job.objects.filter(customer=cust_name, scheduled_date=date).exists():
+            Job.objects.create(
+                customer_ref=customer,
+                customer=cust_name,
+                address=address,
+                state='FL',
+                county=county,
+                scheduled_date=date,
+                scheduled_time=time,
+                status='pending',
+                assigned_to=None,
+                device_type=device_type,
+                device_size=device_size,
+            )
+            created += 1
+
+    return JsonResponse({'ok': True, 'created': created, 'total_defined': len(JOBS)})
+
+
 # ── Import views ──────────────────────────────────────────────────────────────
 
 _IMPORT_COLUMNS = [
