@@ -174,6 +174,29 @@ class TestResult(models.Model):
         return f"{self.customer} — {self.test_date} — {self.overall_result.upper()}"
 
 
+class ActivityLog(models.Model):
+    ACTIVITIES = [
+        ('login',               'Logged In'),
+        ('view_job',            'Viewed Job'),
+        ('submit_test_result',  'Submitted Test Result'),
+    ]
+
+    user = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='activity_logs'
+    )
+    activity = models.CharField(max_length=50, choices=ACTIVITIES)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    detail = models.JSONField(default=dict, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        name = self.user.get_full_name() if self.user else 'Unknown'
+        return f'{self.timestamp:%Y-%m-%d %H:%M} — {name} — {self.activity}'
+
+
 class SmokeTestRun(models.Model):
     run_at = models.DateTimeField(auto_now_add=True)
     triggered_by = models.ForeignKey(

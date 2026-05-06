@@ -6,7 +6,14 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from functools import wraps
-from .models import UserProfile, Job, TestResult, Customer
+from .models import UserProfile, Job, TestResult, Customer, ActivityLog
+
+def log_activity(request, activity, **detail):
+    ip = request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip() \
+         or request.META.get('REMOTE_ADDR')
+    user = request.user if request.user.is_authenticated else None
+    ActivityLog.objects.create(user=user, activity=activity, detail=detail, ip_address=ip or None)
+
 
 # Maps (state, county) → utility submission metadata shown on the test form.
 # Keys: utility, platform, account_label, reference_label, show_hazard,
@@ -126,6 +133,7 @@ def tech_login(request):
             if not hasattr(user, 'profile'):
                 UserProfile.objects.create(user=user, role='technician')
             login(request, user)
+            log_activity(request, 'login')
             return _redirect_by_role(user)
     return render(request, 'technician/login.html', {'error': error})
 
@@ -192,6 +200,12 @@ def tech_job_detail(request, job_id):
     job = get_object_or_404(Job, pk=job_id)
     submitted = False
 
+    if request.method == 'GET':
+        log_activity(request, 'view_job',
+                     job_id=job.id,
+                     customer=job.customer,
+                     scheduled_date=str(job.scheduled_date))
+
     if request.method == 'POST':
         p = request.POST
 
@@ -233,6 +247,10 @@ def tech_job_detail(request, job_id):
         )
         job.status = 'completed'
         job.save()
+        log_activity(request, 'submit_test_result',
+                     job_id=job.id,
+                     customer=job.customer,
+                     result=p.get('overall_result', 'pass'))
         submitted = True
 
     prior_results = job.test_results.all()
@@ -842,6 +860,41 @@ def admin_smoke_tests(request):
     return render(request, 'technician/admin_smoke_tests.html', {
         'latest': latest,
         'runs': runs,
+    })
+
+
+# ── Process mining ───────────────────────────────────────────────────────────
+
+@role_required('admin')
+def admin_process_mining(request):
+    logs = ActivityLog.objects.select_related('user', 'user__profile').order_by('-timestamp')
+
+    role_filter     = request.GET.get('role', '')
+    user_filter     = request.GET.get('user', '')
+    activity_filter = request.GET.get('activity', '')
+
+    if role_filter:
+        logs = logs.filter(user__profile__role=role_filter)
+    if user_filter:
+        logs = logs.filter(user__id=user_filter)
+    if activity_filter:
+        logs = logs.filter(activity=activity_filter)
+
+    all_users = User.objects.select_related('profile').order_by('first_name', 'last_name')
+    today = timezone.localdate()
+    today_count = ActivityLog.objects.filter(timestamp__date=today).count()
+
+    return render(request, 'technician/admin_process_mining.html', {
+        'logs': logs[:200],
+        'total': ActivityLog.objects.count(),
+        'today_count': today_count,
+        'unique_users': ActivityLog.objects.values('user').distinct().count(),
+        'all_users': all_users,
+        'ROLES': UserProfile.ROLES,
+        'ACTIVITIES': ActivityLog.ACTIVITIES,
+        'role_filter': role_filter,
+        'user_filter': user_filter,
+        'activity_filter': activity_filter,
     })
 
 

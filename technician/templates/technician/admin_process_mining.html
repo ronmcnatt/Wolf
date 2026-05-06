@@ -1,0 +1,162 @@
+{% extends "technician/base.html" %}
+
+{% block title %}Process Mining — Wolf Backflow{% endblock %}
+
+{% block content %}
+<div class="tech-page">
+
+  <div class="tech-page-header">
+    <div>
+      <h1>Admin Console</h1>
+      <p>System health checks and user management</p>
+    </div>
+  </div>
+
+  <!-- ADMIN TABS -->
+  <nav class="tab-nav">
+    <a href="{% url 'admin_users' %}" class="tab-link">Users</a>
+    <a href="{% url 'admin_smoke_tests' %}" class="tab-link">Smoke Tests</a>
+    <a href="{% url 'admin_process_mining' %}" class="tab-link active">Process Mining</a>
+  </nav>
+
+  <!-- STATS -->
+  <div class="stats-row" style="margin-bottom: 24px;">
+    <div class="stat-card total">
+      <div class="num">{{ total }}</div>
+      <div class="lbl">Total Events</div>
+    </div>
+    <div class="stat-card active">
+      <div class="num">{{ today_count }}</div>
+      <div class="lbl">Today</div>
+    </div>
+    <div class="stat-card done">
+      <div class="num">{{ unique_users }}</div>
+      <div class="lbl">Unique Users</div>
+    </div>
+  </div>
+
+  <!-- FILTERS -->
+  <form method="get" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:24px;">
+    <div>
+      <label style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--muted); display:block; margin-bottom:4px;">Role</label>
+      <select name="role" onchange="this.form.submit()" style="padding:8px 12px; border:1px solid var(--mid); border-radius:6px; font-size:13px; color:var(--navy); background:var(--white); min-width:140px;">
+        <option value="">All Roles</option>
+        {% for value, label in ROLES %}
+        <option value="{{ value }}" {% if role_filter == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--muted); display:block; margin-bottom:4px;">User</label>
+      <select name="user" onchange="this.form.submit()" style="padding:8px 12px; border:1px solid var(--mid); border-radius:6px; font-size:13px; color:var(--navy); background:var(--white); min-width:180px;">
+        <option value="">All Users</option>
+        {% for u in all_users %}
+        <option value="{{ u.id }}" {% if user_filter == u.id|stringformat:"s" %}selected{% endif %}>
+          {{ u.get_full_name|default:u.username }}{% if u.profile %} ({{ u.profile.get_role_display }}){% endif %}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--muted); display:block; margin-bottom:4px;">Activity</label>
+      <select name="activity" onchange="this.form.submit()" style="padding:8px 12px; border:1px solid var(--mid); border-radius:6px; font-size:13px; color:var(--navy); background:var(--white); min-width:200px;">
+        <option value="">All Activities</option>
+        {% for value, label in ACTIVITIES %}
+        <option value="{{ value }}" {% if activity_filter == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% if role_filter or user_filter or activity_filter %}
+    <div style="align-self:flex-end;">
+      <a href="{% url 'admin_process_mining' %}" class="btn btn-outline btn-sm">✕ Clear</a>
+    </div>
+    {% endif %}
+  </form>
+
+  <!-- ACTIVITY LOG TABLE -->
+  {% if logs %}
+  <div class="ops-table-wrap">
+    <table class="ops-table">
+      <thead>
+        <tr>
+          <th style="width:160px;">Timestamp</th>
+          <th>User</th>
+          <th>Role</th>
+          <th>Activity</th>
+          <th>Detail</th>
+          <th style="width:110px;">IP Address</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in logs %}
+        <tr>
+          <td style="font-size:12px; color:var(--muted); white-space:nowrap;">
+            {{ entry.timestamp|date:"M j, Y" }}<br>
+            <span style="font-size:11px;">{{ entry.timestamp|date:"g:i:s A" }}</span>
+          </td>
+          <td style="font-weight:600; color:var(--navy);">
+            {{ entry.user.get_full_name|default:entry.user.username|default:"—" }}
+          </td>
+          <td>
+            {% if entry.user and entry.user.profile %}
+            <span class="badge role-badge role-{{ entry.user.profile.role }}" style="font-size:11px;">
+              {{ entry.user.profile.get_role_display }}
+            </span>
+            {% else %}
+            <span style="color:var(--muted);">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if entry.activity == 'login' %}
+            <span style="display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; color:var(--navy); background:var(--light); border:1px solid var(--mid); border-radius:4px; padding:2px 8px;">
+              🔑 Logged In
+            </span>
+            {% elif entry.activity == 'view_job' %}
+            <span style="display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; color:#1d4ed8; background:#eff6ff; border:1px solid #bfdbfe; border-radius:4px; padding:2px 8px;">
+              👁 Viewed Job
+            </span>
+            {% elif entry.activity == 'submit_test_result' %}
+            <span style="display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; color:var(--success); background:var(--success-bg); border:1px solid #86efac; border-radius:4px; padding:2px 8px;">
+              ✓ Submitted Test
+            </span>
+            {% else %}
+            <span style="font-size:12px; color:var(--muted);">{{ entry.activity }}</span>
+            {% endif %}
+          </td>
+          <td style="font-size:12px; color:var(--muted);">
+            {% if entry.detail %}
+              {% if entry.detail.customer %}
+                <span style="color:var(--navy); font-weight:500;">{{ entry.detail.customer }}</span>
+                {% if entry.detail.scheduled_date %}
+                  &nbsp;·&nbsp; {{ entry.detail.scheduled_date }}
+                {% endif %}
+                {% if entry.detail.result %}
+                  &nbsp;·&nbsp;
+                  <span style="font-weight:600; color:{% if entry.detail.result == 'pass' %}var(--success){% else %}var(--danger){% endif %};">
+                    {{ entry.detail.result|upper }}
+                  </span>
+                {% endif %}
+              {% endif %}
+            {% endif %}
+          </td>
+          <td style="font-size:11px; color:var(--muted); font-family:monospace;">
+            {{ entry.ip_address|default:"—" }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if logs|length == 200 %}
+  <p style="font-size:12px; color:var(--muted); text-align:center; margin-top:12px;">Showing most recent 200 entries. Use filters to narrow results.</p>
+  {% endif %}
+  {% else %}
+  <div style="text-align:center; padding:60px 0; color:var(--muted);">
+    <div style="font-size:40px; margin-bottom:12px;">📊</div>
+    <p style="font-size:15px; font-weight:600;">No activity logged yet.</p>
+    <p style="font-size:13px; margin-top:6px;">Events appear here as users log in and interact with the portal.</p>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

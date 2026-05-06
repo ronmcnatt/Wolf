@@ -25,6 +25,7 @@ path('ops/customers/new/', views.ops_customer_form, name='ops_customer_new'),
     path('admin/users/new/', views.admin_user_form, name='admin_user_new'),
     path('admin/users/<int:user_id>/edit/', views.admin_user_form, name='admin_user_edit'),
     path('admin/smoketests/', views.admin_smoke_tests, name='admin_smoke_tests'),
+    path('admin/processmining/', views.admin_process_mining, name='admin_process_mining'),
 
     # Customer
     path('customer/', views.customer_dashboard, name='customer_dashboard'),
