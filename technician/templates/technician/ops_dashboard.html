@@ -278,7 +278,6 @@
         <div class="auto-sched-field">
           <label class="auto-sched-label">Max Trips Per Technician</label>
           <select id="maxTrips" class="auto-sched-input">
-            {% for n in "5678910111213141516"|make_list %}{% endfor %}
             <option value="5">5</option>
             <option value="6">6</option>
             <option value="7">7</option>
@@ -290,6 +289,14 @@
             <option value="13">13</option>
             <option value="14">14</option>
             <option value="15">15</option>
+          </select>
+        </div>
+
+        <div class="auto-sched-field">
+          <label class="auto-sched-label">Unassign Current Trips</label>
+          <select id="unassignTrips" class="auto-sched-input">
+            <option value="no" selected>No — add to existing</option>
+            <option value="yes">Yes — re-schedule from scratch</option>
           </select>
         </div>
 
@@ -338,9 +345,10 @@ function updateTechLabel() {
 
 // ── Auto-schedule ──
 function runAutoSchedule() {
-  var date = document.getElementById('schedDate').value;
-  var techIds = Array.from(document.querySelectorAll('.tech-checkbox:checked')).map(c => c.value);
+  var date     = document.getElementById('schedDate').value;
+  var techIds  = Array.from(document.querySelectorAll('.tech-checkbox:checked')).map(c => c.value);
   var maxTrips = parseInt(document.getElementById('maxTrips').value);
+  var unassign = document.getElementById('unassignTrips').value === 'yes';
   var resultDiv = document.getElementById('schedResult');
 
   if (!date) { showSchedResult('error', 'Please select a date.'); return; }
@@ -353,7 +361,7 @@ function runAutoSchedule() {
   fetch(AUTO_SCHEDULE_URL, {
     method: 'POST',
     headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN},
-    body: JSON.stringify({date: date, tech_ids: techIds, max_trips: maxTrips})
+    body: JSON.stringify({date: date, tech_ids: techIds, max_trips: maxTrips, unassign: unassign})
   })
   .then(r => r.json())
   .then(data => {
@@ -413,12 +421,21 @@ function runGeocodeAddresses() {
   var resultDiv = document.getElementById('schedResult');
   resultDiv.innerHTML = '<div class="sched-result-info">Geocoding addresses — this may take 30–60 seconds…</div>';
   resultDiv.style.display = 'block';
-  fetch('{% url "geocode_customers" %}')
-    .then(r => r.json())
+  fetch('{% url "geocode_customers" %}', {
+    headers: {'X-CSRFToken': CSRF_TOKEN}
+  })
+    .then(function(r) {
+      if (!r.ok) {
+        return r.text().then(function(t) {
+          throw new Error('Server returned ' + r.status + (t ? ': ' + t.substring(0, 120) : ''));
+        });
+      }
+      return r.json();
+    })
     .then(data => {
       btn.disabled = false;
       btn.textContent = '📍 Geocode Addresses';
-      var msg = 'Geocoded ' + data.geocoded + ' addresses';
+      var msg = 'Geocoded ' + data.geocoded + ' address' + (data.geocoded !== 1 ? 'es' : '');
       if (data.failed) msg += ', ' + data.failed + ' failed';
       if (data.skipped) msg += ', ' + data.skipped + ' already had coords';
       showSchedResult('info', msg + '.');
@@ -426,7 +443,7 @@ function runGeocodeAddresses() {
     .catch(function(err) {
       btn.disabled = false;
       btn.textContent = '📍 Geocode Addresses';
-      showSchedResult('error', 'Geocode failed: ' + err);
+      showSchedResult('error', 'Geocode failed: ' + err.message);
     });
 }
 </script>

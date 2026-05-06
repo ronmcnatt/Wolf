@@ -397,11 +397,20 @@ def ops_auto_schedule(request):
     date_str  = data.get('date', '').strip()
     tech_ids  = [int(i) for i in data.get('tech_ids', [])]
     max_trips = int(data.get('max_trips', 8))
+    unassign  = bool(data.get('unassign', False))
 
     if not date_str:
         return JsonResponse({'ok': False, 'error': 'Date is required'})
     if not tech_ids:
         return JsonResponse({'ok': False, 'error': 'Select at least one technician'})
+
+    # Unassign existing trips for selected techs on this date so the algo starts fresh
+    if unassign:
+        Job.objects.filter(
+            scheduled_date=date_str,
+            assigned_to__in=tech_ids,
+            status__in=['pending', 'in_progress'],
+        ).update(assigned_to=None, scheduled_time=None)
 
     unassigned = list(
         Job.objects.filter(scheduled_date=date_str, status='pending', assigned_to__isnull=True)
@@ -996,6 +1005,7 @@ def reseed_customer_coords(request):
     return JsonResponse({'ok': True, 'updated': updated})
 
 
+@role_required('operations', 'manager')
 def geocode_customers(request):
     """Geocode all Customer records missing lat/lng via Nominatim (1 req/sec)."""
     all_customers = list(Customer.objects.all())
