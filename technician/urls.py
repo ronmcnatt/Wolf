@@ -17,8 +17,11 @@ urlpatterns = [
     path('ops/job/<int:job_id>/edit/', views.ops_job_form, name='ops_job_edit'),
     path('ops/customers/save/', views.customer_save, name='customer_save'),
     path('ops/customers/<int:customer_id>/save/', views.customer_save, name='customer_save_edit'),
-path('ops/customers/new/', views.ops_customer_form, name='ops_customer_new'),
+    path('ops/customers/new/', views.ops_customer_form, name='ops_customer_new'),
     path('ops/customers/<int:customer_id>/edit/', views.ops_customer_form, name='ops_customer_edit'),
+    path('ops/import/', views.ops_import, name='ops_import'),
+    path('ops/import/confirm/', views.ops_import_confirm, name='ops_import_confirm'),
+    path('ops/import/template/', views.ops_download_template, name='ops_download_template'),
 
     # Admin
     path('admin/users/', views.admin_users, name='admin_users'),

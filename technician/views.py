@@ -1,6 +1,8 @@
+import csv
+import io
 import json
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -267,6 +269,7 @@ def tech_job_detail(request, job_id):
 
 @role_required('operations', 'manager')
 def ops_dashboard(request):
+    import_summary = request.session.pop('import_summary', None)
     tab = request.GET.get('tab', 'jobs')
 
     # ── Jobs tab ──
@@ -319,6 +322,8 @@ def ops_dashboard(request):
         # customers
         'customer_rows': customer_rows, 'csearch': csearch,
         'total_customers': Customer.objects.count(),
+        # import
+        'import_summary': import_summary,
     })
 
 
@@ -755,6 +760,212 @@ def reseed_customer_coords(request):
             c.save()
             updated.append(name)
     return JsonResponse({'ok': True, 'updated': updated})
+
+
+# ── Import views ──────────────────────────────────────────────────────────────
+
+_IMPORT_COLUMNS = [
+    'business_name', 'contact_name', 'phone', 'email',
+    'address', 'city', 'state', 'county', 'zip_code',
+    'scheduled_date', 'scheduled_time', 'status',
+    'device_type', 'device_size', 'device_make', 'device_model', 'serial',
+    'test_date', 'test_time',
+    'cv1_result', 'cv1_psi', 'cv2_result', 'cv2_psi',
+    'rv_result', 'rv_psi', 'line_psi',
+    'overall_result', 'technician_initials', 'utility_account_number', 'notes',
+]
+
+_SAMPLE_ROWS = [
+    {
+        'business_name': 'Sunshine Plumbing', 'contact_name': 'Mike Chen',
+        'phone': '904-555-1234', 'email': 'mike@sunshine.com',
+        'address': '123 Main St', 'city': 'Jacksonville', 'state': 'FL',
+        'county': 'Duval', 'zip_code': '32202',
+        'scheduled_date': '2026-06-01', 'scheduled_time': '09:00', 'status': 'pending',
+        'device_type': 'RPZ', 'device_size': '1"', 'device_make': 'Watts',
+        'device_model': '909', 'serial': 'SN123456',
+        'test_date': '', 'test_time': '', 'cv1_result': '', 'cv1_psi': '',
+        'cv2_result': '', 'cv2_psi': '', 'rv_result': '', 'rv_psi': '',
+        'line_psi': '', 'overall_result': '', 'technician_initials': '',
+        'utility_account_number': '', 'notes': '',
+    },
+    {
+        'business_name': 'Harbor Irrigation', 'contact_name': 'Tom Brown',
+        'phone': '904-555-5678', 'email': '',
+        'address': '456 Oak Ave', 'city': 'St. Augustine', 'state': 'FL',
+        'county': 'St. Johns', 'zip_code': '32084',
+        'scheduled_date': '2025-12-15', 'scheduled_time': '10:30', 'status': 'completed',
+        'device_type': 'DCVA', 'device_size': '2"', 'device_make': 'Febco',
+        'device_model': '850', 'serial': 'SN789012',
+        'test_date': '2025-12-15', 'test_time': '10:45',
+        'cv1_result': 'closed', 'cv1_psi': '12.5',
+        'cv2_result': 'closed', 'cv2_psi': '12.5',
+        'rv_result': 'opened_ok', 'rv_psi': '8.0', 'line_psi': '95.0',
+        'overall_result': 'pass', 'technician_initials': 'TB',
+        'utility_account_number': '', 'notes': '',
+    },
+]
+
+
+def _parse_import_csv(file_obj):
+    rows = []
+    errors = []
+    try:
+        text = file_obj.read().decode('utf-8-sig')
+        reader = csv.DictReader(io.StringIO(text))
+        for i, raw in enumerate(reader, start=2):  # row 1 = header
+            row = {k.strip().lower().replace(' ', '_'): (v.strip() if v else '') for k, v in raw.items()}
+            warnings = []
+            if not row.get('business_name'):
+                warnings.append('Missing business_name')
+            if not row.get('address'):
+                warnings.append('Missing address')
+            if not row.get('scheduled_date'):
+                warnings.append('Missing scheduled_date')
+            status = row.get('status', 'pending').lower()
+            if status not in ('pending', 'in_progress', 'completed', 'cancelled'):
+                warnings.append(f'Unknown status "{status}" — defaulting to pending')
+                status = 'pending'
+            row['status'] = status
+            if not row.get('state'):
+                row['state'] = 'FL'
+            if not row.get('scheduled_time'):
+                row['scheduled_time'] = '08:00'
+            if status == 'completed' and not row.get('overall_result'):
+                warnings.append('Status is completed but overall_result is missing')
+            row['_row_num'] = i
+            row['_warnings'] = warnings
+            rows.append(row)
+    except Exception as exc:
+        errors.append(f'Could not parse file: {exc}')
+    return rows, errors
+
+
+@role_required('operations', 'manager')
+def ops_import(request):
+    if request.method == 'POST' and request.FILES.get('csv_file'):
+        rows, parse_errors = _parse_import_csv(request.FILES['csv_file'])
+        for row in rows:
+            row['_customer_exists'] = Customer.objects.filter(
+                business_name__iexact=row.get('business_name', '')
+            ).exists()
+        # Store serialisable copy in session (strip non-JSON-safe keys if needed)
+        request.session['pending_import'] = rows
+        return render(request, 'technician/ops_import.html', {
+            'rows': rows,
+            'parse_errors': parse_errors,
+            'preview_mode': True,
+        })
+    request.session.pop('pending_import', None)
+    return render(request, 'technician/ops_import.html', {'preview_mode': False})
+
+
+@role_required('operations', 'manager')
+def ops_import_confirm(request):
+    if request.method != 'POST':
+        return redirect('ops_import')
+    rows = request.session.pop('pending_import', [])
+    selected_indices = set(request.POST.getlist('selected'))
+    created_customers = created_jobs = created_tests = skipped = 0
+
+    for row in rows:
+        if str(row.get('_row_num', '')) not in selected_indices:
+            skipped += 1
+            continue
+        if not row.get('business_name') or not row.get('scheduled_date'):
+            skipped += 1
+            continue
+
+        customer = Customer.objects.filter(
+            business_name__iexact=row['business_name']
+        ).first()
+        if not customer:
+            customer = Customer.objects.create(
+                business_name=row['business_name'],
+                contact_name=row.get('contact_name', ''),
+                phone=row.get('phone', ''),
+                email=row.get('email', ''),
+                address=row.get('address', ''),
+                city=row.get('city', ''),
+                state=row.get('state', 'FL'),
+                county=row.get('county', ''),
+                zip_code=row.get('zip_code', ''),
+            )
+            created_customers += 1
+
+        def _decimal(val):
+            try: return float(val) if val else None
+            except (ValueError, TypeError): return None
+
+        def _int(val):
+            try: return int(val) if val else None
+            except (ValueError, TypeError): return None
+
+        job = Job.objects.create(
+            customer_ref=customer,
+            customer=customer.business_name,
+            address=row.get('address') or customer.address,
+            contact=row.get('contact_name') or customer.contact_name,
+            phone=row.get('phone') or customer.phone,
+            state=row.get('state', 'FL'),
+            county=row.get('county', ''),
+            scheduled_date=row['scheduled_date'],
+            scheduled_time=row.get('scheduled_time', '08:00'),
+            status=row.get('status', 'pending'),
+            device_type=row.get('device_type', 'RPZ'),
+            device_size=row.get('device_size', ''),
+            device_make=row.get('device_make', ''),
+            device_model=row.get('device_model', ''),
+            serial=row.get('serial', ''),
+            notes=row.get('notes', ''),
+        )
+        created_jobs += 1
+
+        if row.get('status') == 'completed' and row.get('overall_result'):
+            TestResult.objects.create(
+                job=job,
+                customer=customer.business_name,
+                address=row.get('address') or customer.address,
+                device_type=row.get('device_type', 'RPZ'),
+                device_size=row.get('device_size', ''),
+                manufacturer=row.get('device_make', ''),
+                model=row.get('device_model', ''),
+                serial=row.get('serial', ''),
+                test_date=row.get('test_date') or row['scheduled_date'],
+                test_time=row.get('test_time') or row.get('scheduled_time', '08:00'),
+                cv1_result=row.get('cv1_result', ''),
+                cv1_psi=_decimal(row.get('cv1_psi')),
+                cv2_result=row.get('cv2_result', ''),
+                cv2_psi=_decimal(row.get('cv2_psi')),
+                rv_result=row.get('rv_result', ''),
+                rv_psi=_decimal(row.get('rv_psi')),
+                line_psi=_decimal(row.get('line_psi')),
+                overall_result=row.get('overall_result', 'pass'),
+                notes=row.get('notes', ''),
+                technician_initials=row.get('technician_initials', '').upper(),
+                submitted_by=request.user,
+                utility_account_number=row.get('utility_account_number', ''),
+            )
+            created_tests += 1
+
+    request.session['import_summary'] = {
+        'jobs': created_jobs,
+        'customers': created_customers,
+        'tests': created_tests,
+        'skipped': skipped,
+    }
+    return redirect('ops_dashboard')
+
+
+@role_required('operations', 'manager')
+def ops_download_template(request):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="wolf_import_template.csv"'
+    writer = csv.DictWriter(response, fieldnames=_IMPORT_COLUMNS)
+    writer.writeheader()
+    for row in _SAMPLE_ROWS:
+        writer.writerow(row)
+    return response
 
 
 # ── Admin views ───────────────────────────────────────────────────────────────

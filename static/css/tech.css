@@ -806,3 +806,74 @@ a { color: inherit; text-decoration: none; }
 .session-footer strong { color: var(--muted); font-weight: 600; }
 .session-footer a { color: var(--muted); text-decoration: underline; }
 .session-footer a:hover { color: var(--navy); }
+
+/* ── NAV DROPDOWN ── */
+.nav-dropdown { position: relative; }
+.nav-dropdown-trigger { cursor: pointer; }
+.nav-dropdown-menu {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  background: var(--white);
+  border: 1px solid var(--mid);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  min-width: 160px;
+  z-index: 200;
+  overflow: hidden;
+}
+.nav-dropdown-menu.open { display: block; }
+.nav-dropdown-item {
+  display: block;
+  padding: 11px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--navy);
+  text-decoration: none;
+  transition: background 0.1s;
+}
+.nav-dropdown-item:hover { background: var(--light); color: var(--teal); }
+
+/* ── IMPORT PAGE ── */
+.import-card {
+  background: var(--white);
+  border: 1px solid var(--mid);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.import-card-section {
+  padding: 28px 32px;
+  border-bottom: 1px solid var(--mid);
+}
+.import-card-section:last-child { border-bottom: none; }
+.import-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 12px;
+}
+.import-drop-zone {
+  border: 2px dashed var(--mid);
+  border-radius: 10px;
+  padding: 36px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.import-drop-zone:hover { border-color: var(--teal); background: #f0fdfd; }
+.import-drop-icon { font-size: 36px; margin-bottom: 10px; }
+.import-drop-label { font-size: 14px; font-weight: 600; color: var(--navy); }
+.import-summary-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 20px;
+  background: var(--white);
+  border: 1px solid var(--mid);
+  border-radius: 8px;
+  min-width: 90px;
+}
+.import-summary-num { font-size: 28px; font-weight: 800; color: var(--navy); line-height: 1; }
+.import-summary-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+.import-preview-table tr.has-warning { background: #fffbeb; }

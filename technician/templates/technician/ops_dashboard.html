@@ -17,6 +17,15 @@
     {% endif %}
   </div>
 
+  {% if import_summary %}
+  <div style="background:var(--success-bg); border:1px solid #86efac; border-radius:8px; padding:12px 18px; margin-bottom:20px; font-size:13px; color:var(--success); font-weight:600;">
+    ✓ Import complete — {{ import_summary.jobs }} job{{ import_summary.jobs|pluralize }} imported
+    ({{ import_summary.customers }} new customer{{ import_summary.customers|pluralize }},
+    {{ import_summary.tests }} test result{{ import_summary.tests|pluralize }}){% if import_summary.skipped %},
+    {{ import_summary.skipped }} row{{ import_summary.skipped|pluralize }} skipped{% endif %}.
+  </div>
+  {% endif %}
+
   <!-- TAB NAV -->
   <nav class="tab-nav">
     <a href="?tab=jobs" class="tab-link {% if tab != 'customers' %}active{% endif %}">Jobs</a>

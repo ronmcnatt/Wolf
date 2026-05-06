@@ -1,0 +1,248 @@
+{% extends "technician/base.html" %}
+
+{% block title %}Import Jobs — Wolf Backflow{% endblock %}
+
+{% block content %}
+<div class="tech-page">
+
+  <div class="tech-page-header">
+    <div>
+      <h1>{% if preview_mode %}Review Import{% else %}Import Jobs{% endif %}</h1>
+      <p>
+        {% if preview_mode %}
+          Review the records below, uncheck any you want to skip, then click Import.
+        {% else %}
+          Upload a CSV file to bulk-import customers, jobs, and test results.
+        {% endif %}
+      </p>
+    </div>
+    <a href="{% url 'ops_dashboard' %}" class="btn btn-outline">← Back to Dashboard</a>
+  </div>
+
+  {% if not preview_mode %}
+  <!-- ── UPLOAD STEP ── -->
+  <div class="import-card">
+    <div class="import-card-section">
+      <h2 class="import-section-title">Step 1 — Download Template</h2>
+      <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">
+        Use this CSV template to format your data. Required columns are marked in the file.
+      </p>
+      <a href="{% url 'ops_download_template' %}" class="btn btn-outline">⬇ Download CSV Template</a>
+    </div>
+
+    <div class="import-card-section">
+      <h2 class="import-section-title">Step 2 — Upload Your File</h2>
+      <form method="post" enctype="multipart/form-data" id="uploadForm">
+        {% csrf_token %}
+        <div class="import-drop-zone" id="dropZone" onclick="document.getElementById('csvInput').click()">
+          <div class="import-drop-icon">📂</div>
+          <div class="import-drop-label" id="dropLabel">Click to choose a CSV file</div>
+          <div style="font-size:12px; color:var(--muted); margin-top:4px;">or drag and drop here</div>
+          <input type="file" name="csv_file" id="csvInput" accept=".csv,text/csv" style="display:none;" onchange="fileChosen(this)">
+        </div>
+        <div style="margin-top:16px;">
+          <button type="submit" class="btn btn-primary" id="uploadBtn" disabled>Parse &amp; Preview →</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="import-card-section" style="background:var(--light); border-radius:8px; padding:16px;">
+      <h2 class="import-section-title" style="margin-bottom:8px;">CSV Column Reference</h2>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px 24px; font-size:12px;">
+        <div><strong style="color:var(--navy);">Customer</strong></div>
+        <div><strong style="color:var(--navy);">Job</strong></div>
+        <div><strong style="color:var(--navy);">Test Result</strong> <span style="color:var(--muted);">(completed only)</span></div>
+        <div style="color:var(--muted); line-height:1.8;">
+          business_name *<br>contact_name<br>phone<br>email<br>address *<br>city<br>state<br>county<br>zip_code
+        </div>
+        <div style="color:var(--muted); line-height:1.8;">
+          scheduled_date *<br>scheduled_time<br>status<br>device_type<br>device_size<br>device_make<br>device_model<br>serial<br>notes
+        </div>
+        <div style="color:var(--muted); line-height:1.8;">
+          test_date<br>test_time<br>cv1_result<br>cv1_psi<br>cv2_result<br>cv2_psi<br>rv_result<br>rv_psi<br>line_psi<br>overall_result<br>technician_initials<br>utility_account_number
+        </div>
+      </div>
+      <p style="font-size:11px; color:var(--muted); margin-top:10px;">* required &nbsp;·&nbsp; status values: pending, in_progress, completed, cancelled &nbsp;·&nbsp; device_type values: RPZ, DCVA, PVB, SVB, RPDA</p>
+    </div>
+  </div>
+
+  {% else %}
+  <!-- ── PREVIEW STEP ── -->
+
+  {% if parse_errors %}
+  <div style="background:var(--danger-bg); border:1px solid #fca5a5; border-radius:8px; padding:14px 18px; margin-bottom:20px; font-size:13px; color:var(--danger);">
+    {% for err in parse_errors %}<div>⚠ {{ err }}</div>{% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- SUMMARY PILLS -->
+  <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px;">
+    <div class="import-summary-pill">
+      <span class="import-summary-num" id="selectedCount">{{ rows|length }}</span>
+      <span class="import-summary-lbl">Selected</span>
+    </div>
+    <div class="import-summary-pill" style="border-color:#86efac; background:#f0fdf4;">
+      <span class="import-summary-num" style="color:var(--success);">
+        {% with ns=0 %}{% for r in rows %}{% if not r._customer_exists %}{% with ns=ns|add:1 %}{% endwith %}{% endif %}{% endfor %}{{ rows|length }}{% endwith %}
+      </span>
+      <span class="import-summary-lbl">Rows</span>
+    </div>
+    <div class="import-summary-pill" style="border-color:#bfdbfe; background:#eff6ff;">
+      <span class="import-summary-num" style="color:#1d4ed8;">
+        {{ rows|length }}
+      </span>
+      <span class="import-summary-lbl">Jobs</span>
+    </div>
+  </div>
+
+  <form method="post" action="{% url 'ops_import_confirm' %}" id="importForm">
+    {% csrf_token %}
+
+    <!-- SELECT ALL BAR -->
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+      <label style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; cursor:pointer; color:var(--navy);">
+        <input type="checkbox" id="selectAll" checked onchange="toggleAll(this.checked)" style="width:16px; height:16px;">
+        Select All
+      </label>
+      <span style="font-size:13px; color:var(--muted);" id="selectionSummary">{{ rows|length }} of {{ rows|length }} selected</span>
+    </div>
+
+    <div class="ops-table-wrap" style="margin-bottom:24px;">
+      <table class="ops-table import-preview-table">
+        <thead>
+          <tr>
+            <th style="width:40px;"></th>
+            <th>Business Name</th>
+            <th>Address</th>
+            <th>County</th>
+            <th>Scheduled</th>
+            <th>Status</th>
+            <th>Device</th>
+            <th>Test Result</th>
+            <th>Customer</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr class="import-row {% if row._warnings %}has-warning{% endif %}" data-index="{{ forloop.counter }}">
+            <td style="text-align:center;">
+              <input type="checkbox" name="selected" value="{{ row._row_num }}" class="row-checkbox"
+                     checked onchange="updateCount()" style="width:16px; height:16px;">
+            </td>
+            <td style="font-weight:600; color:var(--navy);">{{ row.business_name|default:"—" }}</td>
+            <td style="font-size:12px; color:var(--muted);">
+              {{ row.address|default:"" }}{% if row.city %}, {{ row.city }}{% endif %}
+            </td>
+            <td style="font-size:12px;">{{ row.county|default:"—" }}</td>
+            <td style="font-size:12px; white-space:nowrap;">
+              {{ row.scheduled_date|default:"—" }}
+              {% if row.scheduled_time %}<br><span style="color:var(--muted);">{{ row.scheduled_time }}</span>{% endif %}
+            </td>
+            <td>
+              {% if row.status == 'completed' %}
+              <span class="badge badge-completed" style="font-size:11px;">✓ Completed</span>
+              {% elif row.status == 'in_progress' %}
+              <span class="badge badge-in_progress" style="font-size:11px;">● In Progress</span>
+              {% elif row.status == 'cancelled' %}
+              <span class="badge" style="font-size:11px; background:#f1f5f9; color:var(--muted);">Cancelled</span>
+              {% else %}
+              <span class="badge badge-pending" style="font-size:11px;">○ Pending</span>
+              {% endif %}
+            </td>
+            <td style="font-size:12px;">
+              {{ row.device_type|default:"—" }}{% if row.device_size %} · {{ row.device_size }}{% endif %}
+            </td>
+            <td style="font-size:12px;">
+              {% if row.overall_result %}
+                <span style="font-weight:700; color:{% if row.overall_result == 'pass' %}var(--success){% else %}var(--danger){% endif %};">
+                  {{ row.overall_result|upper }}
+                </span>
+                {% if row.technician_initials %}· {{ row.technician_initials }}{% endif %}
+              {% else %}
+                <span style="color:var(--muted);">—</span>
+              {% endif %}
+            </td>
+            <td style="font-size:11px;">
+              {% if row._customer_exists %}
+              <span style="color:var(--teal); font-weight:600;">Existing</span>
+              {% else %}
+              <span style="color:var(--warning); font-weight:600;">New</span>
+              {% endif %}
+              {% if row._warnings %}
+              <div style="margin-top:3px;">
+                {% for w in row._warnings %}
+                <div style="color:var(--danger); font-size:10px;">⚠ {{ w }}</div>
+                {% endfor %}
+              </div>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:16px; padding-top:8px; border-top:2px solid var(--border);">
+      <button type="submit" class="btn btn-primary" style="padding:12px 32px; font-size:15px;">
+        ✓ Import Selected Records
+      </button>
+      <a href="{% url 'ops_import' %}" class="btn btn-outline">← Upload a Different File</a>
+      <span style="font-size:13px; color:var(--muted);" id="importNote">
+        <span id="selectedCount2">{{ rows|length }}</span> records will be imported.
+      </span>
+    </div>
+  </form>
+  {% endif %}
+
+</div>
+
+<script>
+function fileChosen(input) {
+  var label = document.getElementById('dropLabel');
+  var btn = document.getElementById('uploadBtn');
+  if (input.files && input.files[0]) {
+    label.textContent = input.files[0].name;
+    btn.disabled = false;
+  }
+}
+
+var dropZone = document.getElementById('dropZone');
+if (dropZone) {
+  dropZone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    dropZone.style.borderColor = 'var(--teal)';
+  });
+  dropZone.addEventListener('dragleave', function() {
+    dropZone.style.borderColor = '';
+  });
+  dropZone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    dropZone.style.borderColor = '';
+    var file = e.dataTransfer.files[0];
+    if (file) {
+      document.getElementById('csvInput').files = e.dataTransfer.files;
+      fileChosen(document.getElementById('csvInput'));
+    }
+  });
+}
+
+function toggleAll(checked) {
+  document.querySelectorAll('.row-checkbox').forEach(function(cb) { cb.checked = checked; });
+  updateCount();
+}
+
+function updateCount() {
+  var total = document.querySelectorAll('.row-checkbox').length;
+  var selected = document.querySelectorAll('.row-checkbox:checked').length;
+  var el1 = document.getElementById('selectedCount');
+  var el2 = document.getElementById('selectedCount2');
+  var summary = document.getElementById('selectionSummary');
+  var allBox = document.getElementById('selectAll');
+  if (el1) el1.textContent = selected;
+  if (el2) el2.textContent = selected;
+  if (summary) summary.textContent = selected + ' of ' + total + ' selected';
+  if (allBox) allBox.checked = selected === total;
+  allBox.indeterminate = selected > 0 && selected < total;
+}
+</script>
+{% endblock %}
