@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Technician Portal — Wolf Backflow{% endblock %}</title>
+  <title>Wolf {% if request.user.is_authenticated %}{{ request.user.profile.get_role_display }} {{ request.user.get_full_name|default:request.user.username }}{% else %}Backflow{% endif %}</title>
   <link rel="stylesheet" href="{% static 'css/tech.css' %}">
   {% block head %}{% endblock %}
 </head>
