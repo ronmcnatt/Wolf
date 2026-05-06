@@ -83,7 +83,7 @@
     </div>
     <div class="import-summary-pill" style="border-color:#86efac; background:#f0fdf4;">
       <span class="import-summary-num" style="color:var(--success);">
-        {% with ns=0 %}{% for r in rows %}{% if not r._customer_exists %}{% with ns=ns|add:1 %}{% endwith %}{% endif %}{% endfor %}{{ rows|length }}{% endwith %}
+        {{ rows|length }}
       </span>
       <span class="import-summary-lbl">Rows</span>
     </div>
@@ -124,9 +124,9 @@
         </thead>
         <tbody>
           {% for row in rows %}
-          <tr class="import-row {% if row._warnings %}has-warning{% endif %}" data-index="{{ forloop.counter }}">
+          <tr class="import-row {% if row.warnings %}has-warning{% endif %}" data-index="{{ forloop.counter }}">
             <td style="text-align:center;">
-              <input type="checkbox" name="selected" value="{{ row._row_num }}" class="row-checkbox"
+              <input type="checkbox" name="selected" value="{{ row.row_num }}" class="row-checkbox"
                      checked onchange="updateCount()" style="width:16px; height:16px;">
             </td>
             <td style="font-weight:600; color:var(--navy);">{{ row.business_name|default:"—" }}</td>
@@ -163,14 +163,14 @@
               {% endif %}
             </td>
             <td style="font-size:11px;">
-              {% if row._customer_exists %}
+              {% if row.customer_exists %}
               <span style="color:var(--teal); font-weight:600;">Existing</span>
               {% else %}
               <span style="color:var(--warning); font-weight:600;">New</span>
               {% endif %}
-              {% if row._warnings %}
+              {% if row.warnings %}
               <div style="margin-top:3px;">
-                {% for w in row._warnings %}
+                {% for w in row.warnings %}
                 <div style="color:var(--danger); font-size:10px;">⚠ {{ w }}</div>
                 {% endfor %}
               </div>

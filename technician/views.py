@@ -833,8 +833,8 @@ def _parse_import_csv(file_obj):
                 row['scheduled_time'] = '08:00'
             if status == 'completed' and not row.get('overall_result'):
                 warnings.append('Status is completed but overall_result is missing')
-            row['_row_num'] = i
-            row['_warnings'] = warnings
+            row['row_num'] = i
+            row['warnings'] = warnings
             rows.append(row)
     except Exception as exc:
         errors.append(f'Could not parse file: {exc}')
@@ -846,7 +846,7 @@ def ops_import(request):
     if request.method == 'POST' and request.FILES.get('csv_file'):
         rows, parse_errors = _parse_import_csv(request.FILES['csv_file'])
         for row in rows:
-            row['_customer_exists'] = Customer.objects.filter(
+            row['customer_exists'] = Customer.objects.filter(
                 business_name__iexact=row.get('business_name', '')
             ).exists()
         # Store serialisable copy in session (strip non-JSON-safe keys if needed)
@@ -869,7 +869,7 @@ def ops_import_confirm(request):
     created_customers = created_jobs = created_tests = skipped = 0
 
     for row in rows:
-        if str(row.get('_row_num', '')) not in selected_indices:
+        if str(row.get('row_num', '')) not in selected_indices:
             skipped += 1
             continue
         if not row.get('business_name') or not row.get('scheduled_date'):

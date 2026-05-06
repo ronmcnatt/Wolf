@@ -80,6 +80,17 @@ a { color: inherit; text-decoration: none; }
   transition: background 0.2s;
 }
 .tech-nav-right .logout-btn:hover { background: rgba(255,255,255,0.2); }
+.tech-nav-right .nav-action-btn {
+  background: rgba(0,168,168,0.25);
+  color: var(--white);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+.tech-nav-right .nav-action-btn:hover { background: rgba(0,168,168,0.4); }
 
 /* ── PAGE WRAPPER ── */
 .tech-page { padding: 24px; max-width: 1400px; margin: 0 auto; }

@@ -28,16 +28,9 @@
       <span>{{ request.user.get_full_name|default:request.user.username }}</span>
       <span class="role-badge role-{{ request.user.profile.role }}">{{ request.user.profile.get_role_display }}</span>
       {% if request.user.profile.role == 'operations' or request.user.profile.role == 'manager' %}
-      <div class="nav-dropdown">
-        <button class="nav-dropdown-trigger logout-btn" onclick="toggleNavMenu(event)">Menu ▾</button>
-        <div class="nav-dropdown-menu" id="navDropdownMenu">
-          <a href="{% url 'ops_import' %}" class="nav-dropdown-item">📥 Import</a>
-          <a href="{% url 'tech_logout' %}" class="nav-dropdown-item">🚪 Log Out</a>
-        </div>
-      </div>
-      {% else %}
-      <a href="{% url 'tech_logout' %}" class="logout-btn">Log Out</a>
+      <a href="{% url 'ops_import' %}" class="nav-action-btn">📥 Import</a>
       {% endif %}
+      <a href="{% url 'tech_logout' %}" class="logout-btn">Log Out</a>
     </div>
   </nav>
 
@@ -49,16 +42,5 @@
     &nbsp;·&nbsp; <a href="{% url 'tech_logout' %}">Sign out</a>
   </footer>
 
-<script>
-function toggleNavMenu(e) {
-  e.stopPropagation();
-  var menu = document.getElementById('navDropdownMenu');
-  menu.classList.toggle('open');
-}
-document.addEventListener('click', function() {
-  var menu = document.getElementById('navDropdownMenu');
-  if (menu) menu.classList.remove('open');
-});
-</script>
 </body>
 </html>
