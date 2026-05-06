@@ -105,7 +105,7 @@ Login redirects automatically based on role. Unauthorized role access redirects 
 
 ## Current POC Limitations (Known Tech Debt)
 1. **No multi-tenant support** — no concept of separate companies/accounts yet
-2. **No scheduling system** — jobs assigned manually by operations, no dispatch/routing optimization
+2. **Auto-schedule is greedy, not optimal** — geo-VRP with 2-opt exists but no real-time traffic, drive-time estimates, or technician start/end locations; county centroids used as fallback when coordinates are missing
 3. **No utility API integration** — `utility_submitted` field exists but no actual submission logic (contact JEA or BackflowManager for integration access)
 4. **Manager role** — currently sees Operations views; manager-specific reporting views not yet built
 5. **No password reset** — POC credentials only, no email/reset flow
@@ -135,18 +135,21 @@ Login redirects automatically based on role. Unauthorized role access redirects 
 
 ## Sample Data (Supabase / Production)
 All one-time seed endpoints have been run against Supabase. Current state:
-- **10 customers** — seeded with addresses and coordinates
+- **10 original customers** — seeded with addresses and coordinates
 - **10 historical 2025 jobs** — one per customer, all completed/passed; distributed JS×4, MT×3, RD×3
 - **3 completed 2026 jobs** — Jan–Mar 2026, all by John Smith (JS), all passed
-- **7 unassigned pending 2026 jobs** — May–Jun 2026, remaining customers
+- **7 unassigned pending 2026 jobs** — May–Jun 2026, remaining original customers
+- **45 unassigned pending 2026 jobs** — May 6–8 2026, Duval/St. Johns/Clay counties; seeded via `seedupcomingjobs`; new Customer records created for each (coordinates need `geocodecustomers` run)
 - **13 TestResult records** — one for each completed job
 
 Seed endpoints (keep in urls.py for future reseeds, idempotent):
 - `GET /tech/seedusers/` — creates/updates all 7 demo users with correct passwords, roles, counties, and license data (use when AppConfig.ready() seed fails silently)
-- `GET /tech/reseedcoords/` — patches lat/lng onto the 10 sample customers
+- `GET /tech/reseedcoords/` — patches lat/lng onto the 10 original sample customers
 - `GET /tech/seedhistory/` — creates historical jobs + test results (skips if already exist)
 - `GET /tech/reassignhistory/` — patches assigned_to/submitted_by on historical jobs (fixes unassigned if seedhistory ran before mthompson/rdiaz were created)
 - `GET /tech/seedutilityfields/` — patches utility_account_number on existing TestResults with demo account numbers (JEA/CCUA/SJC format by county)
+- `GET /tech/seedupcomingjobs/` — creates 45 pending unassigned jobs for May 6–8 2026 across Duval/St. Johns/Clay (idempotent — skips if already exist)
+- `GET /tech/geocodecustomers/` — geocodes all Customer records missing lat/lng via Nominatim at 1 req/sec; **run once after seedupcomingjobs** to populate coordinates for the 45 new customers so auto-schedule uses real distances
 
 ## Florida Utility Integration Reference
 Full FL utility research is in `florida_utilities.csv` at project root (60+ utilities). Key findings:
@@ -162,10 +165,12 @@ Full FL utility research is in `florida_utilities.csv` at project root (60+ util
 - [x] Create Import page in Operations — CSV upload, preview with checkboxes, confirm import
 - [x] Activity log for process mining — login, view job, submit test wired for technician role
 - [x] Smoke test tab on admin console — Technician workflow checks, run on demand, history
+- [x] Auto-schedule panel — geo-VRP routing with 2-opt, route miles, unassign + re-schedule option
+- [ ] Run `GET /tech/geocodecustomers/` on Render to populate coordinates for 45 new customers
 - [ ] Identify / Handle Acquisitions in Data Model
 - [ ] Add Operations/Admin/Customer workflow specs → smoke test cases for those roles
 - [ ] Expand activity logging to Operations role (create job, edit job, create customer)
-- [ ] Scheduling and dispatch system with routing optimization
+- [ ] Improve auto-schedule with drive-time estimates (Google Maps / OSRM) instead of straight-line haversine
 - [ ] Customer self-registers
 - [ ] Wire up utility submission: generate per-utility PDF (BSI form, Pasco form, etc.) or POST to SwiftComply/Tokay portal using stored `utility_account_number`
 - [ ] Ability to submit results to a utility, Portal and API
@@ -192,7 +197,7 @@ Full FL utility research is in `florida_utilities.csv` at project root (60+ util
 - **Customer lookup on job form**: filter-as-you-type input + select dropdown; selecting a customer auto-fills business name, address, contact, phone, state/county dropdowns, and both Leaflet map markers.
 - **Customer modal**: "+ New Customer" and "✎ Edit Customer" buttons open an inline modal (AJAX `POST` to `customer_save`); the CUSTOMERS JS array is updated in-place without a page reload.
 - **Leaflet maps**: both the job form and customer edit form have Property Location and Device Location maps (OpenStreetMap tiles via Leaflet 1.9.4). Dragging markers updates hidden lat/lng inputs. Job form has a "📍 Locate" button that geocodes the address via Nominatim.
-- **Operations dashboard tabs**: `?tab=jobs` (default) and `?tab=customers`. Jobs tab defaults to showing all jobs (no date filter); user can filter by date, status, or technician. Customers tab has search by business name, city, or county; shows active jobs, total jobs, last test date and pass/fail result per customer.
+- **Operations dashboard tabs**: `?tab=jobs` (default) and `?tab=customers`. Jobs tab defaults to showing jobs from today forward (pending + future); a "Show All Dates" link appears when using the default — "Clear" when a custom filter is active. User can filter by date, status, or technician. Customers tab has search by business name, city, or county; shows active jobs, total jobs, last test date and pass/fail result per customer.
 - **Operations nav**: Operations and Manager users see **📥 Import** and **Log Out** as always-visible links in the top-right nav. Other roles see only Log Out.
 - **CSV Import** (`/tech/ops/import/`): two-step flow — upload CSV → preview table with per-row checkboxes (New/Existing customer badge, status pill, warnings) → confirm POST creates Customer (if new), Job, and TestResult (for completed rows with `overall_result`). Downloadable template at `/tech/ops/import/template/`. 30 supported columns across Customer, Job, and Test Result. Import summary shown as a green banner on the ops dashboard after completion.
 - **Admin console tabs**: Users | Smoke Tests | Process Mining — all three admin pages share the same tab nav.
@@ -201,6 +206,12 @@ Full FL utility research is in `florida_utilities.csv` at project root (60+ util
 - **Technician dashboard default**: shows open jobs (pending + in-progress) from today forward. Filter pills: Today / Open Jobs (default) / All Dates.
 - **State/County dropdowns**: FL counties are pre-populated; selecting a non-FL state clears the county list. Pattern used in job form, customer modal, and customer edit page.
 - **Dynamic utility section on test form**: when a job's state+county maps to a known utility (via `UTILITY_CONFIGS` in views.py), a teal-bordered card appears on the test form above Notes. Shows utility name, platform badge, submission instructions, and the correct account number field label for that utility (BSI CCN, JEA account #, VEPO VCC#, etc.). GRU (Alachua) additionally shows hazard level and service type selects.
+- **Auto-schedule panel** (right sidebar on ops dashboard): date picker, multi-select technician dropdown, Max Trips (5–15), Unassign Current Trips (No/Yes), ⚡ Auto Schedule button, 📍 Geocode Addresses button.
+  - **Routing algorithm** (`ops_auto_schedule` in views.py): (1) resolves lat/lng for each job — job record → linked customer → county centroid fallback; (2) builds per-tech running centroid from existing assignments; techs with no existing jobs are spread east-to-west across the job bounding box; (3) greedy nearest-centroid assignment — jobs sorted outward from geographic center, each goes to eligible tech with closest centroid (tiebreak: fewest total jobs); (4) 2-opt optimization minimises total driving distance within each tech's route; (5) `scheduled_time` set in optimised order starting 8:00am + 45 min per stop.
+  - **Unassign Current Trips = Yes** — clears `assigned_to` and `scheduled_time` for all pending/in-progress jobs belonging to selected techs on that date before routing, giving the algo a clean slate.
+  - **Result display**: per-tech card showing new jobs, total, and route miles; total estimated miles across all techs; skipped jobs with reason.
+  - **Geocode Addresses button** — AJAX GET to `/tech/geocodecustomers/`; geocodes all Customer records missing lat/lng via Nominatim at 1 req/sec; shows geocoded/failed/skipped counts when done. Run once after seeding new customers.
+  - **Geo helpers in views.py**: `_COUNTY_CENTROIDS` (6 FL counties), `haversine(lat1, lng1, lat2, lng2)` → miles, `geocode_nominatim(address, city, state)` → `(lat, lng)` or None.
 - **Technician county filter on job form**: the "Assign To" dropdown in `ops_job_form.html` is JS-driven (TECHNICIANS array from `technicians_json`). Selecting a county filters the dropdown to only technicians whose `counties` list includes that county. A coverage note "(N cover County, M hidden)" appears next to the label. If a tech's license expires within 90 days, their name shows "⚠ Exp. Mon YYYY" in amber; if expired, "✗ License expired" in red. Techs outside coverage but already assigned to a job appear with "⚠ Outside coverage area" warning.
 
 ## Conventions
