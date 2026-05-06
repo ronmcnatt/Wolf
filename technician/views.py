@@ -1,6 +1,10 @@
 import csv
 import io
 import json
+import math
+import time
+import urllib.request
+import urllib.parse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
@@ -15,6 +19,49 @@ def log_activity(request, activity, **detail):
          or request.META.get('REMOTE_ADDR')
     user = request.user if request.user.is_authenticated else None
     ActivityLog.objects.create(user=user, activity=activity, detail=detail, ip_address=ip or None)
+
+
+# ── Geo utilities ─────────────────────────────────────────────────────────────
+
+_COUNTY_CENTROIDS = {
+    'Duval':     (30.3322, -81.6557),
+    'St. Johns': (29.9200, -81.4340),
+    'Clay':      (30.0994, -81.6771),
+    'Nassau':    (30.5941, -81.7787),
+    'Flagler':   (29.4730, -81.3014),
+    'Alachua':   (29.6516, -82.3248),
+}
+
+
+def haversine(lat1, lng1, lat2, lng2):
+    """Straight-line distance in miles between two lat/lng points."""
+    R = 3958.8
+    dlat = math.radians(lat2 - lat1)
+    dlng = math.radians(lng2 - lng1)
+    a = (math.sin(dlat / 2) ** 2 +
+         math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) *
+         math.sin(dlng / 2) ** 2)
+    return R * 2 * math.asin(math.sqrt(a))
+
+
+def geocode_nominatim(address, city, state):
+    """
+    Single geocode request via Nominatim.
+    Returns (lat, lng) or None. Caller must enforce 1-req/sec rate limit.
+    """
+    q = ', '.join(filter(None, [address, city, state]))
+    url = 'https://nominatim.openstreetmap.org/search?' + urllib.parse.urlencode(
+        {'q': q, 'format': 'json', 'limit': 1}
+    )
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'WolfBackflow/1.0'})
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            data = json.loads(resp.read())
+            if data:
+                return float(data[0]['lat']), float(data[0]['lon'])
+    except Exception:
+        pass
+    return None
 
 
 # Maps (state, county) → utility submission metadata shown on the test form.
@@ -365,73 +412,152 @@ def ops_auto_schedule(request):
                              'message': 'No unassigned pending jobs for that date.',
                              'details': []})
 
-    # Build per-tech state: existing assignments + county density map
+    def resolve_coords(job):
+        """Return (lat, lng) for a job: job coords → customer coords → county centroid."""
+        if job.lat and job.lng:
+            return (float(job.lat), float(job.lng))
+        if job.customer_ref and job.customer_ref.lat and job.customer_ref.lng:
+            return (float(job.customer_ref.lat), float(job.customer_ref.lng))
+        return _COUNTY_CENTROIDS.get(job.county, (30.3322, -81.6557))
+
+    job_geo = {job.id: resolve_coords(job) for job in unassigned}
+
+    # Build per-tech state with centroid of existing assignments for this date
     techs = User.objects.filter(id__in=tech_ids).select_related('profile')
     state = {}
     for t in techs:
-        existing = list(Job.objects.filter(assigned_to=t, scheduled_date=date_str))
-        county_counts = {}
-        for j in existing:
-            county_counts[j.county] = county_counts.get(j.county, 0) + 1
+        existing = list(Job.objects.filter(assigned_to=t, scheduled_date=date_str)
+                        .select_related('customer_ref'))
+        ex_coords = [resolve_coords(j) for j in existing]
+        if ex_coords:
+            centroid = (
+                sum(c[0] for c in ex_coords) / len(ex_coords),
+                sum(c[1] for c in ex_coords) / len(ex_coords),
+            )
+        else:
+            centroid = None  # spread below
         state[t.id] = {
-            'user':          t,
-            'name':          t.get_full_name() or t.username,
-            'counties':      set(t.profile.counties or []),
-            'existing':      len(existing),
-            'total':         len(existing),
-            'county_counts': county_counts,
-            'new_jobs':      [],
+            'user':     t,
+            'name':     t.get_full_name() or t.username,
+            'counties': set(t.profile.counties or []),
+            'existing': len(existing),
+            'total':    len(existing),
+            'centroid': centroid,
+            'new_jobs': [],
         }
+
+    # Spread techs with no existing jobs evenly across the job bounding box (east→west)
+    no_centroid = [s for s in state.values() if s['centroid'] is None]
+    if no_centroid:
+        lats = [c[0] for c in job_geo.values()]
+        lngs = [c[1] for c in job_geo.values()]
+        mid_lat = (min(lats) + max(lats)) / 2
+        min_lng, max_lng = min(lngs), max(lngs)
+        n = len(no_centroid)
+        for i, s in enumerate(no_centroid):
+            frac = (i + 0.5) / n
+            s['centroid'] = (mid_lat, min_lng + frac * (max_lng - min_lng))
+
+    # Sort jobs from geographic center outward so edge jobs fill first
+    all_lats = [c[0] for c in job_geo.values()]
+    all_lngs = [c[1] for c in job_geo.values()]
+    geo_center = (sum(all_lats) / len(all_lats), sum(all_lngs) / len(all_lngs))
+    remaining = sorted(unassigned, key=lambda j: haversine(*geo_center, *job_geo[j.id]))
 
     assigned_count = 0
     skipped = []
 
-    for job in unassigned:
+    for job in remaining:
+        jlat, jlng = job_geo[job.id]
         eligible = [
             s for s in state.values()
             if (not job.county or job.county in s['counties'])
             and s['total'] < max_trips
         ]
         if not eligible:
-            reason = 'capacity full' if any(
-                job.county in s['counties'] for s in state.values()
-            ) else f'no tech covers {job.county} county'
+            reason = ('capacity full' if any(job.county in s['counties'] for s in state.values())
+                      else f'no tech covers {job.county} county')
             skipped.append({'customer': job.customer, 'reason': reason})
             continue
 
-        # Primary sort: more existing jobs in this county = better density
-        # Tiebreak: fewer total jobs = better balance
-        eligible.sort(key=lambda s: (
-            -s['county_counts'].get(job.county, 0),
-            s['total'],
-        ))
+        # Nearest centroid wins; tiebreak on fewest total jobs
+        eligible.sort(key=lambda s: (haversine(s['centroid'][0], s['centroid'][1], jlat, jlng),
+                                     s['total']))
         best = eligible[0]
         job.assigned_to = best['user']
         job.save()
-
+        best['new_jobs'].append(job)
         best['total'] += 1
-        best['county_counts'][job.county] = best['county_counts'].get(job.county, 0) + 1
-        best['new_jobs'].append(job.customer)
+
+        # Running centroid update
+        n = best['total']
+        clat, clng = best['centroid']
+        best['centroid'] = ((clat * (n - 1) + jlat) / n, (clng * (n - 1) + jlng) / n)
         assigned_count += 1
 
-    details = [
-        {
-            'tech':     s['name'],
-            'new':      len(s['new_jobs']),
-            'existing': s['existing'],
-            'total':    s['total'],
-            'jobs':     s['new_jobs'],
-        }
-        for s in state.values()
-        if s['new_jobs']
-    ]
+    # 2-opt route optimization per tech, then assign scheduled times
+    from datetime import datetime as dt, time as dtime, timedelta
+
+    def _route_dist(coords):
+        return sum(haversine(*coords[i], *coords[i + 1]) for i in range(len(coords) - 1))
+
+    def two_opt(coords):
+        best = list(coords)
+        improved = True
+        while improved:
+            improved = False
+            for i in range(1, len(best) - 1):
+                for j in range(i + 1, len(best)):
+                    candidate = best[:i] + best[i:j + 1][::-1] + best[j + 1:]
+                    if _route_dist(candidate) < _route_dist(best) - 0.001:
+                        best = candidate
+                        improved = True
+        return best
+
+    details = []
+    total_miles_all = 0.0
+
+    for s in state.values():
+        if not s['new_jobs']:
+            continue
+
+        job_list = s['new_jobs']
+        coords   = [job_geo[j.id] for j in job_list]
+
+        if len(coords) >= 3:
+            opt_coords = two_opt(coords)
+            # Map optimised coords back to jobs (use index to avoid float equality issues)
+            coord_index = {coords[i]: i for i in range(len(coords))}
+            ordered = [job_list[coord_index[c]] for c in opt_coords]
+        else:
+            opt_coords = coords
+            ordered    = job_list
+
+        route_miles = _route_dist(opt_coords) if len(opt_coords) > 1 else 0.0
+        total_miles_all += route_miles
+
+        # Assign scheduled times: 8 am + 45 min per stop
+        for idx, job in enumerate(ordered):
+            sched = (dt.combine(dt.today(), dtime(8, 0)) + timedelta(minutes=idx * 45)).time()
+            job.scheduled_time = sched
+            job.save()
+
+        details.append({
+            'tech':        s['name'],
+            'new':         len(job_list),
+            'existing':    s['existing'],
+            'total':       s['total'],
+            'route_miles': round(route_miles, 1),
+            'jobs':        [j.customer for j in ordered],
+        })
 
     return JsonResponse({
-        'ok':      True,
-        'assigned': assigned_count,
-        'skipped':  len(skipped),
+        'ok':           True,
+        'assigned':     assigned_count,
+        'skipped':      len(skipped),
         'skipped_detail': skipped,
-        'details': details,
+        'total_miles':  round(total_miles_all, 1),
+        'details':      details,
     })
 
 
@@ -868,6 +994,31 @@ def reseed_customer_coords(request):
             c.save()
             updated.append(name)
     return JsonResponse({'ok': True, 'updated': updated})
+
+
+def geocode_customers(request):
+    """Geocode all Customer records missing lat/lng via Nominatim (1 req/sec)."""
+    all_customers = list(Customer.objects.all())
+    missing  = [c for c in all_customers if not c.lat or not c.lng]
+    skipped  = len(all_customers) - len(missing)
+    geocoded, failed = [], []
+    for c in missing:
+        result = geocode_nominatim(c.address, c.city, c.state or 'FL')
+        if result:
+            c.lat, c.lng = result
+            c.save(update_fields=['lat', 'lng'])
+            geocoded.append(c.business_name)
+        else:
+            failed.append(c.business_name)
+        time.sleep(1.1)
+    return JsonResponse({
+        'ok':            True,
+        'geocoded':      len(geocoded),
+        'failed':        len(failed),
+        'skipped':       skipped,
+        'geocoded_names': geocoded,
+        'failed_names':  failed,
+    })
 
 
 def seed_upcoming_jobs(request):

@@ -41,4 +41,5 @@ urlpatterns = [
     path('reassignhistory/', views.reassign_history, name='reassign_history'),
     path('seedutilityfields/', views.seed_utility_fields, name='seed_utility_fields'),
     path('seedupcomingjobs/', views.seed_upcoming_jobs, name='seed_upcoming_jobs'),
+    path('geocodecustomers/', views.geocode_customers, name='geocode_customers'),
 ]

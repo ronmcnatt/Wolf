@@ -176,9 +176,8 @@ Full FL utility research is in `florida_utilities.csv` at project root (60+ util
 - [ ] Utility compliance report generation and submission
 - [ ] QuickBooks Online integration for invoicing
 - [ ] Integrate Repairs and Parts Inventory
-- [ ] Customer self orders a test
-- [ ] Handle Technician credentials and work schedule, PTO, service area
-- [ ] Text capability for customers
+- [ ] Customer self orders a test, including via text
+- [ ] Integration with Paylocity, et. Al for work schedule, PTO, service area
 
 ## Device Types Supported
 | Code | Full Name |
