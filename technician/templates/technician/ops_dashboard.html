@@ -206,7 +206,16 @@
                 {{ job.customer }}
                 {% if job.county %}<div style="font-size:11px;color:var(--muted);">{{ job.county }} Co.</div>{% endif %}
               </td>
-              <td class="td-address">{{ job.address }}</td>
+              <td class="td-address">
+                {{ job.address }}
+                {% if job.lat and job.lng %}
+                  <div style="font-size:11px;color:var(--muted);margin-top:2px;">{{ job.lat }}, {{ job.lng }}</div>
+                {% elif job.customer_ref.lat and job.customer_ref.lng %}
+                  <div style="font-size:11px;color:var(--muted);margin-top:2px;">{{ job.customer_ref.lat }}, {{ job.customer_ref.lng }} <span style="color:#00A8A8;">(cust)</span></div>
+                {% else %}
+                  <div style="font-size:11px;color:#e57373;margin-top:2px;">no coords</div>
+                {% endif %}
+              </td>
               <td><span class="badge badge-device">{{ job.device_type }}{% if job.device_size %} · {{ job.device_size }}{% endif %}</span></td>
               <td>
                 {% if job.assigned_to %}
