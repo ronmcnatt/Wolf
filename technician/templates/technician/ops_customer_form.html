@@ -101,7 +101,11 @@
             Drag the markers to set property and device coordinates. These pre-fill maps when scheduling a job for this customer.
           </p>
           <div class="map-block" style="margin-bottom:16px;">
-            <h4>Property Location</h4>
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+              <h4 style="margin:0;">Property Location</h4>
+              <button type="button" class="btn btn-outline btn-sm" id="locate-btn" onclick="locateAddress()">📍 Locate Address</button>
+              <span id="locate-status" style="font-size:12px; color:var(--muted);"></span>
+            </div>
             <div class="map-container" id="property-map" style="height:220px;"></div>
             <input type="hidden" name="lat" id="c-lat" value="{{ customer.lat|default:'' }}">
             <input type="hidden" name="lng" id="c-lng" value="{{ customer.lng|default:'' }}">
@@ -241,5 +245,36 @@
     document.getElementById('c-device-lat').value = e.latlng.lat.toFixed(6);
     document.getElementById('c-device-lng').value = e.latlng.lng.toFixed(6);
   });
+
+  function locateAddress() {
+    const addr  = document.getElementById('id_address') ? document.getElementById('id_address').value
+                : document.querySelector('[name="address"]').value;
+    const city  = document.querySelector('[name="city"]').value;
+    const state = document.querySelector('[name="state"]').value || 'FL';
+    if (!addr) { document.getElementById('locate-status').textContent = 'Enter an address first.'; return; }
+    const btn = document.getElementById('locate-btn');
+    const status = document.getElementById('locate-status');
+    btn.disabled = true;
+    status.textContent = 'Searching…';
+    const q = [addr, city, state].filter(Boolean).join(', ');
+    fetch('https://nominatim.openstreetmap.org/search?' + new URLSearchParams({q, format:'json', limit:1}), {
+      headers: {'User-Agent': 'WolfBackflow/1.0'}
+    })
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false;
+      if (!data.length) { status.textContent = 'Address not found — drag the pin manually.'; return; }
+      const lat = parseFloat(data[0].lat), lng = parseFloat(data[0].lon);
+      propMarker.setLatLng([lat, lng]);
+      propMap.setView([lat, lng], 17);
+      document.getElementById('c-lat').value = lat.toFixed(6);
+      document.getElementById('c-lng').value = lng.toFixed(6);
+      status.textContent = '✓ Found — drag pin to refine if needed.';
+    })
+    .catch(() => {
+      btn.disabled = false;
+      status.textContent = 'Lookup failed — drag the pin manually.';
+    });
+  }
 </script>
 {% endblock %}

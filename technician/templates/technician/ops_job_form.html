@@ -496,7 +496,21 @@
       county:        document.getElementById('m-county').value,
       zip_code:      document.getElementById('m-zip').value.trim(),
       notes:         document.getElementById('m-notes').value.trim(),
+      lat: null, lng: null, device_lat: null, device_lng: null,
     };
+    // Preserve existing coords when editing — don't wipe a successfully geocoded customer
+    if (editingCustomerId) {
+      const existing = CUSTOMERS.find(x => String(x.id) === String(editingCustomerId));
+      if (existing) {
+        // If address changed, clear coords so geocode will retry; otherwise keep them
+        const addrChanged = (existing.address || '') !== payload.address ||
+                            (existing.city    || '') !== payload.city;
+        if (!addrChanged) {
+          payload.lat = existing.lat; payload.lng = existing.lng;
+          payload.device_lat = existing.device_lat; payload.device_lng = existing.device_lng;
+        }
+      }
+    }
     if (!payload.business_name) { showModalError('Business name is required.'); return; }
 
     const url = editingCustomerId
