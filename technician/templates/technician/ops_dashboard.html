@@ -261,7 +261,8 @@
         <div class="auto-sched-field">
           <label class="auto-sched-label">Date to Schedule</label>
           <input type="date" id="schedDate" value="{{ today|date:'Y-m-d' }}"
-                 class="auto-sched-input">
+                 class="auto-sched-input"
+                 onchange="document.getElementById('geocodeDateLabel').textContent = this.value || 'selected date'">
         </div>
 
         <div class="auto-sched-field">
@@ -312,7 +313,7 @@
           ⚡ Auto Schedule
         </button>
         <button class="btn btn-outline btn-sm" style="margin-top:8px; width:100%;" onclick="runGeocodeAddresses()" id="geocodeBtn">
-          📍 Geocode Addresses
+          📍 Geocode for <span id="geocodeDateLabel">{{ today|date:'Y-m-d' }}</span>
         </button>
 
         <div id="schedResult" style="display:none; margin-top:16px;"></div>
@@ -460,12 +461,19 @@ function runGeocodeAddresses(resume) {
         resultDiv.innerHTML = '<div class="sched-result-info">' + msg + '</div>';
         runGeocodeAddresses(true);
       } else {
-        btn.disabled = false;
-        btn.textContent = '📍 Geocode Addresses';
         var msg = 'Geocoded ' + _geocodeTotals.geocoded + ' address' + (_geocodeTotals.geocoded !== 1 ? 'es' : '');
         if (_geocodeTotals.failed) msg += ', ' + _geocodeTotals.failed + ' failed';
         if (_geocodeTotals.skipped) msg += ', ' + _geocodeTotals.skipped + ' already had coords';
-        showSchedResult('info', msg + '.');
+        if (_geocodeTotals.geocoded > 0) {
+          // Reload so the job list reflects updated coordinates
+          resultDiv.innerHTML = '<div class="sched-result-info">' + msg + '. Refreshing…</div>';
+          resultDiv.style.display = 'block';
+          setTimeout(function() { location.reload(); }, 1200);
+        } else {
+          btn.disabled = false;
+          btn.textContent = '📍 Geocode Addresses';
+          showSchedResult('info', msg + '.');
+        }
       }
     })
     .catch(function(err) {
