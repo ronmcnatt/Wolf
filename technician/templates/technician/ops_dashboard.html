@@ -423,6 +423,7 @@ function showSchedResult(type, msg) {
 }
 
 var _geocodeTotals = {geocoded: 0, failed: 0, skipped: 0};
+var _geocodeDate = '';
 
 function runGeocodeAddresses(resume) {
   var btn = document.getElementById('geocodeBtn');
@@ -430,11 +431,14 @@ function runGeocodeAddresses(resume) {
   var resultDiv = document.getElementById('schedResult');
   if (!resume) {
     _geocodeTotals = {geocoded: 0, failed: 0, skipped: 0};
+    _geocodeDate = document.getElementById('schedDate').value;
     btn.textContent = 'Geocoding…';
-    resultDiv.innerHTML = '<div class="sched-result-info">Geocoding addresses (batch of 20)…</div>';
+    var label = _geocodeDate ? 'for ' + _geocodeDate : '(all customers)';
+    resultDiv.innerHTML = '<div class="sched-result-info">Geocoding addresses ' + label + '…</div>';
     resultDiv.style.display = 'block';
   }
-  fetch('{% url "geocode_customers" %}', {
+  var url = '{% url "geocode_customers" %}' + (_geocodeDate ? '?date=' + _geocodeDate : '');
+  fetch(url, {
     headers: {'X-CSRFToken': CSRF_TOKEN}
   })
     .then(function(r) {

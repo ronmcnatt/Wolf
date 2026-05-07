@@ -1007,14 +1007,28 @@ def reseed_customer_coords(request):
 
 @role_required('operations', 'manager')
 def geocode_customers(request):
-    """Geocode Customer records missing lat/lng via Nominatim (1 req/sec, max 20 per call)."""
+    """Geocode Customer records missing lat/lng via Nominatim (1 req/sec, max 20 per call).
+
+    Optional GET param `date` (YYYY-MM-DD): limits to customers linked to jobs on that date.
+    Without a date, geocodes all customers missing coords.
+    """
     import traceback as tb
     try:
         BATCH = 20
-        all_customers = list(Customer.objects.all())
-        missing  = [c for c in all_customers if not c.lat or not c.lng]
+        date_str = request.GET.get('date', '').strip()
+
+        if date_str:
+            customer_ids = Job.objects.filter(
+                scheduled_date=date_str,
+                customer_ref__isnull=False,
+            ).values_list('customer_ref_id', flat=True).distinct()
+            candidates = list(Customer.objects.filter(pk__in=customer_ids))
+        else:
+            candidates = list(Customer.objects.all())
+
+        missing  = [c for c in candidates if not c.lat or not c.lng]
         remaining = len(missing)
-        skipped  = len(all_customers) - remaining
+        skipped  = len(candidates) - remaining
         geocoded, failed = [], []
         for c in missing[:BATCH]:
             result = geocode_nominatim(c.address, c.city, c.state or 'FL')
