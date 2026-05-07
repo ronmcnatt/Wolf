@@ -1007,12 +1007,14 @@ def reseed_customer_coords(request):
 
 @role_required('operations', 'manager')
 def geocode_customers(request):
-    """Geocode all Customer records missing lat/lng via Nominatim (1 req/sec)."""
+    """Geocode Customer records missing lat/lng via Nominatim (1 req/sec, max 20 per call)."""
+    BATCH = 20
     all_customers = list(Customer.objects.all())
     missing  = [c for c in all_customers if not c.lat or not c.lng]
-    skipped  = len(all_customers) - len(missing)
+    remaining = len(missing)
+    skipped  = len(all_customers) - remaining
     geocoded, failed = [], []
-    for c in missing:
+    for c in missing[:BATCH]:
         result = geocode_nominatim(c.address, c.city, c.state or 'FL')
         if result:
             c.lat, c.lng = result
@@ -1026,6 +1028,7 @@ def geocode_customers(request):
         'geocoded':      len(geocoded),
         'failed':        len(failed),
         'skipped':       skipped,
+        'remaining':     max(0, remaining - BATCH),
         'geocoded_names': geocoded,
         'failed_names':  failed,
     })

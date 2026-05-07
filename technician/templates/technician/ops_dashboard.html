@@ -413,13 +413,18 @@ function showSchedResult(type, msg) {
   div.style.display = 'block';
 }
 
-function runGeocodeAddresses() {
+var _geocodeTotals = {geocoded: 0, failed: 0, skipped: 0};
+
+function runGeocodeAddresses(resume) {
   var btn = document.getElementById('geocodeBtn');
   btn.disabled = true;
-  btn.textContent = 'Geocoding…';
   var resultDiv = document.getElementById('schedResult');
-  resultDiv.innerHTML = '<div class="sched-result-info">Geocoding addresses — this may take 30–60 seconds…</div>';
-  resultDiv.style.display = 'block';
+  if (!resume) {
+    _geocodeTotals = {geocoded: 0, failed: 0, skipped: 0};
+    btn.textContent = 'Geocoding…';
+    resultDiv.innerHTML = '<div class="sched-result-info">Geocoding addresses (batch of 20)…</div>';
+    resultDiv.style.display = 'block';
+  }
   fetch('{% url "geocode_customers" %}', {
     headers: {'X-CSRFToken': CSRF_TOKEN}
   })
@@ -431,13 +436,22 @@ function runGeocodeAddresses() {
       }
       return r.json();
     })
-    .then(data => {
-      btn.disabled = false;
-      btn.textContent = '📍 Geocode Addresses';
-      var msg = 'Geocoded ' + data.geocoded + ' address' + (data.geocoded !== 1 ? 'es' : '');
-      if (data.failed) msg += ', ' + data.failed + ' failed';
-      if (data.skipped) msg += ', ' + data.skipped + ' already had coords';
-      showSchedResult('info', msg + '.');
+    .then(function(data) {
+      _geocodeTotals.geocoded += data.geocoded || 0;
+      _geocodeTotals.failed   += data.failed   || 0;
+      if (!resume) _geocodeTotals.skipped = data.skipped || 0;
+      if (data.remaining > 0) {
+        var msg = 'Geocoded ' + _geocodeTotals.geocoded + ' so far, ' + data.remaining + ' remaining…';
+        resultDiv.innerHTML = '<div class="sched-result-info">' + msg + '</div>';
+        runGeocodeAddresses(true);
+      } else {
+        btn.disabled = false;
+        btn.textContent = '📍 Geocode Addresses';
+        var msg = 'Geocoded ' + _geocodeTotals.geocoded + ' address' + (_geocodeTotals.geocoded !== 1 ? 'es' : '');
+        if (_geocodeTotals.failed) msg += ', ' + _geocodeTotals.failed + ' failed';
+        if (_geocodeTotals.skipped) msg += ', ' + _geocodeTotals.skipped + ' already had coords';
+        showSchedResult('info', msg + '.');
+      }
     })
     .catch(function(err) {
       btn.disabled = false;
