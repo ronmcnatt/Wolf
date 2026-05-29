@@ -1721,11 +1721,32 @@ def admin_demo_reload(request):
 
     try:
         with transaction.atomic():
-            _exec_sql(delete_sql)
-            _exec_sql(seed_sql)
+            # Snapshot job→customer and job→location links before the delete
+            # NULLs them out via ON DELETE SET NULL.
+            job_links = list(
+                Job.objects.filter(customer_ref__demo=True)
+                .values('id', 'customer_ref_id', 'location_ref_id')
+            )
+
+            _exec_sql(delete_sql)   # customer_ref_id / location_ref_id on jobs → NULL
+            _exec_sql(seed_sql)     # customers + locations re-inserted with same IDs
+
+            # Restore the FK references now that the same IDs are back.
+            for link in job_links:
+                Job.objects.filter(pk=link['id']).update(
+                    customer_ref_id=link['customer_ref_id'],
+                    location_ref_id=link['location_ref_id'],
+                )
+
         customers = Customer.objects.filter(demo=True).count()
         locations = CustomerLocation.objects.filter(customer__demo=True).count()
-        return JsonResponse({'ok': True, 'customers': customers, 'locations': locations})
+        jobs_relinked = len(job_links)
+        return JsonResponse({
+            'ok': True,
+            'customers': customers,
+            'locations': locations,
+            'jobs_relinked': jobs_relinked,
+        })
     except Exception as e:
         return JsonResponse({'ok': False, 'error': str(e)}, status=500)
 

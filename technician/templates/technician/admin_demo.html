@@ -84,7 +84,7 @@
         status.style.background = '#d1fae5';
         status.style.color = '#065f46';
         status.style.border = '1px solid #6ee7b7';
-        status.textContent = '✓ Reloaded successfully — ' + data.customers + ' customers, ' + data.locations + ' locations.';
+        status.textContent = '✓ Reloaded — ' + data.customers + ' customers, ' + data.locations + ' locations, ' + data.jobs_relinked + ' job links restored.';
         // Update stat cards
         document.querySelectorAll('.demo-stat')[0] && (document.querySelectorAll('.demo-stat')[0].textContent = data.customers);
       } else {
