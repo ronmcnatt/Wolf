@@ -1930,46 +1930,75 @@ def admin_demo_reload_jobs(request):
 
 
 def seed_customer_portal_users(request):
-    """Create portal User accounts for all demo customers that have an email address."""
-    created, skipped, no_email = [], [], []
+    """Create portal User accounts for all demo customers.
+    Uses customer email as username; for customers without email, generates
+    a demo login from their contact name (e.g. jsmith@wolfbackflow.demo).
+    Idempotent — skips customers already linked to a portal user.
+    """
+    import re
 
-    for customer in Customer.objects.filter(demo=True):
-        email = (customer.email or '').strip()
-        if not email:
-            no_email.append(customer.business_name)
-            continue
+    def _make_demo_email(customer, used):
+        """Generate a unique demo email from contact or business name."""
+        # Prefer contact name (real person), fall back to business name
+        name = (customer.contact_name or customer.business_name or '').strip()
+        parts = name.lower().split()
+        if len(parts) >= 2:
+            base = parts[0][0] + re.sub(r'[^a-z0-9]', '', parts[-1])
+        else:
+            base = re.sub(r'[^a-z0-9]', '', ''.join(parts))[:20] or f'cust{customer.pk}'
+        slug = base
+        n = 2
+        while f'{slug}@wolfbackflow.demo' in used or User.objects.filter(username=f'{slug}@wolfbackflow.demo').exists():
+            slug = f'{base}{n}'
+            n += 1
+        email = f'{slug}@wolfbackflow.demo'
+        used.add(email)
+        return email
 
+    created, skipped = [], []
+    used_emails = set()
+
+    for customer in Customer.objects.filter(demo=True).order_by('business_name'):
         if customer.linked_user_id:
-            skipped.append(f'{customer.business_name} (already linked)')
+            skipped.append(f'{customer.business_name} — already linked')
             continue
+
+        email = (customer.email or '').strip() or _make_demo_email(customer, used_emails)
+
+        # Store generated email back on the customer if it had none
+        if not customer.email:
+            customer.email = email
+
+        password = customer.portal_password or 'test123'
+        if not customer.portal_password:
+            customer.portal_password = password
 
         existing = User.objects.filter(username=email).first()
         if existing:
-            UserProfile.objects.get_or_create(existing, defaults={'role': 'customer'})
+            UserProfile.objects.get_or_create(user=existing, defaults={'role': 'customer'})
             customer.linked_user = existing
-            customer.save(update_fields=['linked_user'])
-            skipped.append(f'{customer.business_name} (user already existed, linked)')
+            customer.save(update_fields=['linked_user', 'email', 'portal_password'])
+            skipped.append(f'{customer.business_name} — user {email} already existed, linked')
             continue
 
         parts = (customer.contact_name or '').split(None, 1)
         user = User.objects.create_user(
             username=email,
             email=email,
-            password=customer.portal_password or 'test123',
+            password=password,
             first_name=parts[0] if parts else '',
             last_name=parts[1] if len(parts) > 1 else '',
         )
         UserProfile.objects.create(user=user, role='customer')
         customer.linked_user = user
-        customer.save(update_fields=['linked_user'])
+        customer.save(update_fields=['linked_user', 'email', 'portal_password'])
         created.append(f'{customer.business_name} → {email}')
 
     return JsonResponse({
         'ok': True,
         'created': created,
         'skipped': skipped,
-        'no_email': no_email,
-        'summary': f'{len(created)} created, {len(skipped)} skipped, {len(no_email)} had no email',
+        'summary': f'{len(created)} created, {len(skipped)} skipped',
     })
 
 
