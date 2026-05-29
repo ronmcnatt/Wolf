@@ -1838,7 +1838,9 @@ def _run_demo_customer_reload():
     is_postgres = 'postgresql' in connection.settings_dict.get('ENGINE', '')
 
     def _exec(sql_text):
-        for stmt in [s.strip() for s in sql_text.split(';') if s.strip() and not s.strip().startswith('--')]:
+        # Strip comment lines first so semicolons inside comments don't split incorrectly.
+        clean = '\n'.join(l for l in sql_text.splitlines() if not l.strip().startswith('--'))
+        for stmt in [s.strip() for s in clean.split(';') if s.strip()]:
             if not is_postgres and stmt.upper().startswith('SELECT SETVAL'):
                 continue
             connection.cursor().execute(stmt)
