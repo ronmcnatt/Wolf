@@ -1895,6 +1895,25 @@ def admin_demo_reload(request):
 
 
 @role_required('admin')
+def admin_demo_cleanup_orphan_jobs(request):
+    """Delete jobs that reference a demo CustomerLocation but not a demo customer.
+    These orphaned jobs block the demo customer/location delete. GET = preview, POST = delete.
+    """
+    demo_loc_ids = list(
+        CustomerLocation.objects.filter(customer__demo=True).values_list('pk', flat=True)
+    )
+    orphans = Job.objects.filter(location_ref_id__in=demo_loc_ids).exclude(
+        customer_ref__demo=True
+    )
+    if request.method == 'GET':
+        rows = list(orphans.values('id', 'customer', 'address', 'status', 'location_ref_id'))
+        return JsonResponse({'count': len(rows), 'jobs': rows})
+    count = orphans.count()
+    orphans.delete()
+    return JsonResponse({'ok': True, 'deleted': count})
+
+
+@role_required('admin')
 def admin_demo_reload_accounts(request):
     """Re-provision portal User accounts for all demo customers (reset passwords too)."""
     if request.method != 'POST':
