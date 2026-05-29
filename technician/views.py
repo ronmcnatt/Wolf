@@ -1924,6 +1924,19 @@ def admin_demo_reload_jobs(request):
     # The seed JSON is the authoritative list of demo job IDs.
     seed_ids = [r['id'] for r in records]
 
+    # Preflight: ensure all referenced customer IDs exist before touching anything.
+    required_customer_ids = set(r['customer_ref_id'] for r in records if r['customer_ref_id'])
+    existing_customer_ids = set(
+        Customer.objects.filter(pk__in=required_customer_ids).values_list('pk', flat=True)
+    )
+    missing = sorted(required_customer_ids - existing_customer_ids)
+    if missing:
+        return JsonResponse({
+            'ok': False,
+            'error': f'Missing {len(missing)} demo customer(s) (e.g. ID {missing[0]}). '
+                     f'Run Reload Customers first, then retry Reload Jobs.',
+        }, status=400)
+
     try:
         with transaction.atomic():
             # Snapshot TestResult→job links before the delete NULLs them.
