@@ -1,0 +1,111 @@
+{% extends "technician/base.html" %}
+
+{% block content %}
+<div class="tech-page">
+
+  <div class="tech-page-header">
+    <div>
+      <h1>Admin Console</h1>
+      <p>System health checks and user management</p>
+    </div>
+  </div>
+
+  <!-- ADMIN TABS -->
+  <nav class="tab-nav">
+    <a href="{% url 'admin_users' %}" class="tab-link">Users</a>
+    <a href="{% url 'admin_smoke_tests' %}" class="tab-link">Smoke Tests</a>
+    <a href="{% url 'admin_process_mining' %}" class="tab-link">Process Mining</a>
+    <a href="{% url 'admin_demo' %}" class="tab-link active">Demo</a>
+  </nav>
+
+  <div style="max-width:680px;">
+
+    <div class="card" style="margin-bottom:20px;">
+      <h3>Demo Data</h3>
+      <p style="font-size:13px; color:var(--muted); margin-bottom:20px;">
+        Manage demo customers and service locations. The seed data is stored in
+        <code>sql/demo_customers_seed.sql</code> and is generated from a known good snapshot.
+        Reloading deletes all customers flagged <code>demo=TRUE</code> and re-inserts the
+        snapshot — real customers (<code>demo=FALSE</code>) are never touched.
+      </p>
+
+      <div style="display:flex; gap:24px; margin-bottom:24px;">
+        <div style="background:#f0fafa; border:1px solid #b2e4e4; border-radius:8px; padding:16px 24px; text-align:center; min-width:120px;">
+          <div style="font-size:32px; font-weight:700; color:var(--teal);">{{ customer_count }}</div>
+          <div style="font-size:12px; color:var(--muted); margin-top:4px;">Demo Customers</div>
+        </div>
+        <div style="background:#f0fafa; border:1px solid #b2e4e4; border-radius:8px; padding:16px 24px; text-align:center; min-width:120px;">
+          <div style="font-size:32px; font-weight:700; color:var(--teal);">{{ location_count }}</div>
+          <div style="font-size:12px; color:var(--muted); margin-top:4px;">Service Locations</div>
+        </div>
+      </div>
+
+      <div id="reload-status" style="display:none; margin-bottom:16px; padding:12px 16px; border-radius:8px; font-size:13px; font-weight:500;"></div>
+
+      <div style="display:flex; align-items:center; gap:12px;">
+        <button id="reload-btn" type="button" class="btn btn-primary" onclick="reloadDemo()">
+          ⟳ Reload Customers
+        </button>
+        <span style="font-size:12px; color:var(--muted);">
+          Deletes all demo=TRUE customers then re-inserts from snapshot.
+        </span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>SQL Scripts</h3>
+      <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">
+        These files can also be run manually against the database.
+      </p>
+      <ul style="font-size:13px; line-height:2;">
+        <li><code>sql/demo_customers_delete.sql</code> — removes all demo customers and their locations</li>
+        <li><code>sql/demo_customers_seed.sql</code> — re-inserts the canonical demo dataset; resets sequences</li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  function reloadDemo() {
+    const btn = document.getElementById('reload-btn');
+    const status = document.getElementById('reload-status');
+    btn.disabled = true;
+    btn.textContent = 'Reloading…';
+    status.style.display = 'none';
+
+    fetch('{% url "admin_demo_reload" %}', {
+      method: 'POST',
+      headers: {'X-CSRFToken': '{{ csrf_token }}'},
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        status.style.background = '#d1fae5';
+        status.style.color = '#065f46';
+        status.style.border = '1px solid #6ee7b7';
+        status.textContent = '✓ Reloaded successfully — ' + data.customers + ' customers, ' + data.locations + ' locations.';
+        // Update stat cards
+        document.querySelectorAll('.demo-stat')[0] && (document.querySelectorAll('.demo-stat')[0].textContent = data.customers);
+      } else {
+        status.style.background = '#fee2e2';
+        status.style.color = '#b91c1c';
+        status.style.border = '1px solid #fca5a5';
+        status.textContent = '✗ Error: ' + (data.error || 'Unknown error');
+      }
+      status.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = '⟳ Reload Customers';
+    })
+    .catch(err => {
+      status.style.background = '#fee2e2';
+      status.style.color = '#b91c1c';
+      status.style.border = '1px solid #fca5a5';
+      status.textContent = '✗ Request failed: ' + err;
+      status.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = '⟳ Reload Customers';
+    });
+  }
+</script>
+{% endblock %}

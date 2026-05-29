@@ -1689,6 +1689,47 @@ def admin_process_mining(request):
     })
 
 
+@role_required('admin')
+def admin_demo(request):
+    customer_count = Customer.objects.filter(demo=True).count()
+    location_count = CustomerLocation.objects.filter(customer__demo=True).count()
+    return render(request, 'technician/admin_demo.html', {
+        'customer_count': customer_count,
+        'location_count': location_count,
+    })
+
+
+@role_required('admin')
+def admin_demo_reload(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    import os
+    from django.db import connection, transaction
+
+    sql_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'sql')
+    delete_sql = open(os.path.join(sql_dir, 'demo_customers_delete.sql')).read()
+    seed_sql   = open(os.path.join(sql_dir, 'demo_customers_seed.sql')).read()
+
+    is_postgres = 'postgresql' in connection.settings_dict.get('ENGINE', '')
+
+    def _exec_sql(sql_text):
+        statements = [s.strip() for s in sql_text.split(';') if s.strip() and not s.strip().startswith('--')]
+        for stmt in statements:
+            if not is_postgres and stmt.upper().startswith('SELECT SETVAL'):
+                continue
+            connection.cursor().execute(stmt)
+
+    try:
+        with transaction.atomic():
+            _exec_sql(delete_sql)
+            _exec_sql(seed_sql)
+        customers = Customer.objects.filter(demo=True).count()
+        locations = CustomerLocation.objects.filter(customer__demo=True).count()
+        return JsonResponse({'ok': True, 'customers': customers, 'locations': locations})
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=500)
+
+
 # ── Customer views ────────────────────────────────────────────────────────────
 
 @role_required('customer')
