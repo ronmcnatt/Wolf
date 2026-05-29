@@ -21,14 +21,13 @@
     <label for="loc-filter-sel" style="font-size:13px; color:var(--muted); font-weight:600; white-space:nowrap;">Filter by location:</label>
     <div style="position:relative;">
       <select id="loc-filter-sel" name="location" multiple
-        onchange="document.getElementById('loc-filter-form').submit()"
         style="min-width:220px; max-width:340px; border:1px solid var(--border); border-radius:8px; padding:5px 8px; font-size:13px; color:var(--navy); background:white; cursor:pointer;">
-        <option value="primary" {% if 'primary' in selected_loc_ids %}selected{% endif %}>Primary Address</option>
+        <option value="all" {% if not selected_loc_ids or 'all' in selected_loc_ids %}selected{% endif %}>All Locations</option>
         {% for loc in locations %}
         <option value="{{ loc.id }}" {% if loc.id|stringformat:"s" in selected_loc_ids %}selected{% endif %}>{{ loc.label }}</option>
         {% endfor %}
       </select>
-      <p style="font-size:11px; color:var(--muted); margin-top:3px;">Hold Ctrl / ⌘ to select multiple. <a href="{% url 'customer_dashboard' %}" style="color:var(--teal);">Clear filter</a></p>
+      <p style="font-size:11px; color:var(--muted); margin-top:3px;">Hold Ctrl / ⌘ to select multiple.</p>
     </div>
   </form>
   {% endif %}
@@ -151,4 +150,21 @@
   </div>
 
 </div>
+
+<script>
+(function () {
+  const sel = document.getElementById('loc-filter-sel');
+  if (!sel) return;
+  sel.addEventListener('change', function () {
+    const opts = Array.from(this.options);
+    const allOpt = opts.find(o => o.value === 'all');
+    if (allOpt && allOpt.selected) {
+      opts.forEach(o => { if (o.value !== 'all') o.selected = false; });
+    } else if (allOpt) {
+      allOpt.selected = false;
+    }
+    document.getElementById('loc-filter-form').submit();
+  });
+})();
+</script>
 {% endblock %}

@@ -2023,24 +2023,16 @@ def customer_dashboard(request):
         customer_record = None
 
     locations = []
-    selected_loc_ids = []   # list of str IDs or 'primary'
-    show_primary = False
+    selected_loc_ids = []   # list of numeric str IDs; empty or ['all'] = no filter
 
     if customer_record:
-        from django.db.models import Q
         locations = list(customer_record.locations.order_by('label'))
         selected_loc_ids = request.GET.getlist('location')
-        show_primary = 'primary' in selected_loc_ids
-        named_ids = [l for l in selected_loc_ids if l != 'primary' and l.isdigit()]
+        named_ids = [l for l in selected_loc_ids if l.isdigit()]
 
         base_qs = Job.objects.filter(customer_ref=customer_record)
-        if selected_loc_ids:
-            q = Q()
-            if show_primary:
-                q |= Q(location_ref__isnull=True)
-            if named_ids:
-                q |= Q(location_ref_id__in=named_ids)
-            base_qs = base_qs.filter(q)
+        if named_ids and 'all' not in selected_loc_ids:
+            base_qs = base_qs.filter(location_ref_id__in=named_ids)
 
         upcoming_jobs = (base_qs
                          .filter(status__in=('pending', 'in_progress'))
