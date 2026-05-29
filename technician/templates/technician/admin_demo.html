@@ -27,6 +27,7 @@
         Deletes all <code>demo=TRUE</code> customers and service locations, then re-inserts
         from the snapshot in <code>sql/demo_customers_seed.sql</code>.
         Real customers (<code>demo=FALSE</code>) and job references are never affected.
+        Portal login accounts are provisioned automatically after each reload.
       </p>
 
       <div style="display:flex; gap:16px; margin-bottom:20px; flex-wrap:wrap;">
@@ -38,38 +39,19 @@
           <div style="font-size:28px; font-weight:700; color:var(--teal);">{{ location_count }}</div>
           <div style="font-size:12px; color:var(--muted); margin-top:2px;">Locations</div>
         </div>
-      </div>
-
-      <div id="cust-status" style="display:none; margin-bottom:14px; padding:12px 16px; border-radius:8px; font-size:13px; font-weight:500;"></div>
-
-      <div style="display:flex; align-items:center; gap:12px;">
-        <button id="cust-btn" type="button" class="btn btn-primary" onclick="reloadCustomers()">⟳ Reload Customers</button>
-        <span style="font-size:12px; color:var(--muted);">SQL: demo_customers_delete.sql + demo_customers_seed.sql (includes portal accounts)</span>
-      </div>
-    </div>
-
-    <!-- CUSTOMER ACCOUNTS CARD -->
-    <div class="card">
-      <h3>Customer Portal Accounts</h3>
-      <p style="font-size:13px; color:var(--muted); margin-bottom:20px;">
-        Creates or resets Django login accounts for all <code>demo=TRUE</code> customers.
-        Username = customer email (or <code>name@wolfbackflow.demo</code> for customers without one).
-        Password is reset to each customer's <code>portal_password</code> (default <code>test123</code>).
-        Run this after a customer reload, or standalone to fix broken logins.
-      </p>
-
-      <div style="display:flex; gap:16px; margin-bottom:20px; flex-wrap:wrap;">
         <div style="background:#f0fafa; border:1px solid #b2e4e4; border-radius:8px; padding:14px 22px; text-align:center;">
           <div style="font-size:28px; font-weight:700; color:var(--teal);">{{ account_count }}</div>
           <div style="font-size:12px; color:var(--muted); margin-top:2px;">Accounts Linked</div>
         </div>
       </div>
 
+      <div id="cust-status" style="display:none; margin-bottom:14px; padding:12px 16px; border-radius:8px; font-size:13px; font-weight:500;"></div>
       <div id="acct-status" style="display:none; margin-bottom:14px; padding:12px 16px; border-radius:8px; font-size:13px; font-weight:500;"></div>
 
-      <div style="display:flex; align-items:center; gap:12px;">
-        <button id="acct-btn" type="button" class="btn btn-primary" onclick="reloadAccounts()">⟳ Reload Customer Accounts</button>
-        <span style="font-size:12px; color:var(--muted);">Resets passwords to portal_password / test123</span>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <button id="cust-btn" type="button" class="btn btn-primary" onclick="reloadCustomers()">⟳ Reload Customers</button>
+        <button id="acct-btn" type="button" class="btn btn-secondary" onclick="reloadAccounts()">⟳ Reload Accounts Only</button>
+        <span style="font-size:12px; color:var(--muted);">Accounts Only resets portal passwords without touching customer data</span>
       </div>
     </div>
 
