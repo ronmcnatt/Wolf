@@ -1936,10 +1936,9 @@ def seed_customer_portal_users(request):
     Idempotent — skips customers already linked to a portal user.
     """
     import re
+    import traceback
 
     def _make_demo_email(customer, used):
-        """Generate a unique demo email from contact or business name."""
-        # Prefer contact name (real person), fall back to business name
         name = (customer.contact_name or customer.business_name or '').strip()
         parts = name.lower().split()
         if len(parts) >= 2:
@@ -1955,51 +1954,63 @@ def seed_customer_portal_users(request):
         used.add(email)
         return email
 
-    created, skipped = [], []
-    used_emails = set()
+    try:
+        created, skipped, errors = [], [], []
+        used_emails = set()
 
-    for customer in Customer.objects.filter(demo=True).order_by('business_name'):
-        if customer.linked_user_id:
-            skipped.append(f'{customer.business_name} — already linked')
-            continue
+        for customer in Customer.objects.filter(demo=True).order_by('business_name'):
+            try:
+                if customer.linked_user_id:
+                    skipped.append(f'{customer.business_name} — already linked')
+                    continue
 
-        email = (customer.email or '').strip() or _make_demo_email(customer, used_emails)
+                email = (customer.email or '').strip() or _make_demo_email(customer, used_emails)
 
-        # Store generated email back on the customer if it had none
-        if not customer.email:
-            customer.email = email
+                if not customer.email:
+                    customer.email = email
 
-        password = customer.portal_password or 'test123'
-        if not customer.portal_password:
-            customer.portal_password = password
+                password = customer.portal_password or 'test123'
+                if not customer.portal_password:
+                    customer.portal_password = password
 
-        existing = User.objects.filter(username=email).first()
-        if existing:
-            UserProfile.objects.get_or_create(user=existing, defaults={'role': 'customer'})
-            customer.linked_user = existing
-            customer.save(update_fields=['linked_user', 'email', 'portal_password'])
-            skipped.append(f'{customer.business_name} — user {email} already existed, linked')
-            continue
+                existing = User.objects.filter(username=email).first()
+                if existing:
+                    UserProfile.objects.get_or_create(user=existing, defaults={'role': 'customer'})
+                    customer.linked_user = existing
+                    customer.save(update_fields=['linked_user', 'email', 'portal_password'])
+                    skipped.append(f'{customer.business_name} — user {email} already existed, linked')
+                    continue
 
-        parts = (customer.contact_name or '').split(None, 1)
-        user = User.objects.create_user(
-            username=email,
-            email=email,
-            password=password,
-            first_name=parts[0] if parts else '',
-            last_name=parts[1] if len(parts) > 1 else '',
-        )
-        UserProfile.objects.create(user=user, role='customer')
-        customer.linked_user = user
-        customer.save(update_fields=['linked_user', 'email', 'portal_password'])
-        created.append(f'{customer.business_name} → {email}')
+                parts = (customer.contact_name or '').split(None, 1)
+                user = User.objects.create_user(
+                    username=email,
+                    email=email,
+                    password=password,
+                    first_name=parts[0] if parts else '',
+                    last_name=parts[1] if len(parts) > 1 else '',
+                )
+                UserProfile.objects.create(user=user, role='customer')
+                customer.linked_user = user
+                customer.save(update_fields=['linked_user', 'email', 'portal_password'])
+                created.append(f'{customer.business_name} → {email}')
 
-    return JsonResponse({
-        'ok': True,
-        'created': created,
-        'skipped': skipped,
-        'summary': f'{len(created)} created, {len(skipped)} skipped',
-    })
+            except Exception as e:
+                errors.append(f'{customer.business_name} — {type(e).__name__}: {e}')
+
+        return JsonResponse({
+            'ok': True,
+            'created': created,
+            'skipped': skipped,
+            'errors': errors,
+            'summary': f'{len(created)} created, {len(skipped)} skipped, {len(errors)} errors',
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'ok': False,
+            'error': f'{type(e).__name__}: {e}',
+            'traceback': traceback.format_exc(),
+        }, status=500)
 
 
 # ── Customer views ────────────────────────────────────────────────────────────
