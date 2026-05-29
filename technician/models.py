@@ -43,6 +43,7 @@ class Customer(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'cust_customer'
         ordering = ['business_name']
 
     def __str__(self):
@@ -63,6 +64,7 @@ class CustomerLocation(models.Model):
     device_lng = models.FloatField(null=True, blank=True)
 
     class Meta:
+        db_table = 'cust_customerlocation'
         ordering = ['label']
 
     def __str__(self):
