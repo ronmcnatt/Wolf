@@ -112,6 +112,59 @@
           </div>
         </div>
 
+        <!-- PORTAL ACCESS -->
+        <div class="card" id="portal-access-card" style="margin-bottom:16px; border-top:3px solid var(--teal); background:#e8f7f7;">
+          <h3 style="margin-bottom:4px;">Portal Access</h3>
+          <p style="font-size:12px; color:var(--muted); margin-bottom:14px;">Customer login credentials for the self-service portal.</p>
+          <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+
+            <div class="form-group">
+              <label>Portal Username</label>
+              {% if customer and customer.linked_user %}
+              <input type="text" value="{{ customer.linked_user.username }}" disabled style="background:#f9fafb; color:var(--muted); font-size:13px;">
+              {% elif customer and customer.email %}
+              <input type="text" value="{{ customer.email }}" disabled style="background:#f9fafb; color:var(--muted); font-size:13px;" title="Will become username when portal account is created">
+              {% else %}
+              <input type="text" value="" disabled placeholder="Set email above to enable portal" style="background:#f9fafb; color:var(--muted); font-size:13px;">
+              {% endif %}
+            </div>
+
+            <div class="form-group">
+              <label>Portal Password</label>
+              <div style="display:flex; gap:6px; align-items:center;">
+                <div style="position:relative; flex:1;">
+                  <input type="password"
+                    name="portal_password"
+                    id="portal-password-field"
+                    value="{{ customer.portal_password|default:'' }}"
+                    data-original="{{ customer.portal_password|default:''|escapejs }}"
+                    {% if customer %}readonly{% endif %}
+                    placeholder="Enter portal password"
+                    autocomplete="new-password"
+                    style="width:100%; padding-right:36px; font-family:monospace;">
+                  <button type="button" onclick="togglePwVisible()" title="Show / hide"
+                    style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:15px; color:var(--muted); line-height:1; padding:0;">👁</button>
+                </div>
+                {% if customer %}
+                <button type="button" id="change-pw-btn" onclick="enablePwChange()" class="btn btn-outline btn-sm" style="white-space:nowrap; flex-shrink:0;">Change</button>
+                {% endif %}
+              </div>
+              {% if customer %}
+                {% if customer.linked_user %}
+                <p style="font-size:11px; color:var(--teal); margin-top:6px;">✓ Portal account active — saving a new password will also update login credentials.</p>
+                {% elif customer.email %}
+                <p style="font-size:11px; color:#b45309; margin-top:6px;">⚠ No portal account yet. Set a password and click Save Changes to create one.</p>
+                {% else %}
+                <p style="font-size:11px; color:var(--muted); margin-top:6px;">Add an email address above, then set a password to enable portal access.</p>
+                {% endif %}
+              {% else %}
+              <p style="font-size:11px; color:var(--muted); margin-top:6px;">Provide an email and password to automatically create a portal account.</p>
+              {% endif %}
+            </div>
+
+          </div>
+        </div>
+
         <div style="display:flex; gap:12px; justify-content:flex-end; margin-bottom:20px;">
           <a href="/tech/ops/?tab=customers" class="btn btn-outline">Cancel</a>
           <button type="submit" class="btn btn-primary">{% if customer %}Save Changes{% else %}Create Customer{% endif %}</button>
@@ -406,6 +459,32 @@
 <script>
   const FL_COUNTIES = {{ FL_COUNTIES|safe }};
   const CUSTOMER_ID = {% if customer %}{{ customer.id }}{% else %}null{% endif %};
+
+  // ── Portal password helpers ───────────────────────────────────────────────────
+  function togglePwVisible() {
+    const f = document.getElementById('portal-password-field');
+    f.type = f.type === 'password' ? 'text' : 'password';
+  }
+  function enablePwChange() {
+    const f = document.getElementById('portal-password-field');
+    const btn = document.getElementById('change-pw-btn');
+    f.removeAttribute('readonly');
+    f.value = '';
+    f.placeholder = 'Enter new password';
+    f.focus();
+    btn.textContent = 'Cancel';
+    btn.onclick = cancelPwChange;
+  }
+  function cancelPwChange() {
+    const f = document.getElementById('portal-password-field');
+    const btn = document.getElementById('change-pw-btn');
+    f.setAttribute('readonly', true);
+    f.value = f.dataset.original;
+    f.type = 'password';
+    f.placeholder = 'Enter portal password';
+    btn.textContent = 'Change';
+    btn.onclick = enablePwChange;
+  }
 
   // ── County dropdowns ─────────────────────────────────────────────────────────
   function updateCounties(prefix, state) {

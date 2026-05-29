@@ -39,6 +39,11 @@ class Customer(models.Model):
     lng = models.FloatField(null=True, blank=True)
     device_lat = models.FloatField(null=True, blank=True)
     device_lng = models.FloatField(null=True, blank=True)
+    portal_password = models.CharField(max_length=128, blank=True)
+    linked_user = models.OneToOneField(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='customer_account'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

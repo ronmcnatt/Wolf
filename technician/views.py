@@ -29,6 +29,38 @@ def log_activity(request, activity, **detail):
     ActivityLog.objects.create(user=user, activity=activity, detail=detail, ip_address=ip or None)
 
 
+def _sync_portal_user(customer, new_password, is_new):
+    """Create or update the Django User linked to a customer for portal access."""
+    email = (customer.email or '').strip()
+    if not email:
+        return
+    password = new_password or customer.portal_password
+    if not password:
+        return
+
+    if is_new or not customer.linked_user:
+        # Find an existing user with this email/username, or create one
+        existing = User.objects.filter(username=email).first()
+        if existing:
+            user = existing
+        else:
+            parts = (customer.contact_name or '').split(None, 1)
+            user = User.objects.create_user(
+                username=email,
+                email=email,
+                password=password,
+                first_name=parts[0] if parts else '',
+                last_name=parts[1] if len(parts) > 1 else '',
+            )
+        UserProfile.objects.get_or_create(user=user, defaults={'role': 'customer'})
+        customer.linked_user = user
+        customer.save(update_fields=['linked_user'])
+    elif new_password:
+        # Existing customer with a linked user — update the portal password
+        customer.linked_user.set_password(new_password)
+        customer.linked_user.save(update_fields=['password'])
+
+
 # ── Geo utilities ─────────────────────────────────────────────────────────────
 
 _COUNTY_CENTROIDS = {
@@ -704,6 +736,7 @@ def ops_customer_form(request, customer_id=None):
         if not business_name:
             error = 'Business name is required.'
         else:
+            is_new = not customer
             if not customer:
                 customer = Customer()
             customer.business_name = business_name
@@ -717,6 +750,10 @@ def ops_customer_form(request, customer_id=None):
             customer.county        = p.get('county', '').strip()
             customer.zip_code      = p.get('zip_code', '').strip()
             customer.notes         = p.get('notes', '').strip()
+
+            new_password = p.get('portal_password', '').strip()
+            if new_password:
+                customer.portal_password = new_password
 
             def _pflt(f):
                 try: return float(p[f]) if p.get(f) else None
@@ -733,6 +770,9 @@ def ops_customer_form(request, customer_id=None):
                 _sync_primary_location(customer)
             except Exception:
                 pass
+
+            _sync_portal_user(customer, new_password, is_new)
+
             messages.success(request, f'"{customer.business_name}" saved successfully.')
             return redirect(f'/tech/ops/customers/{customer.id}/edit/')
 
@@ -771,6 +811,7 @@ def customer_save(request, customer_id=None):
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
+    is_new = not customer_id
     customer = get_object_or_404(Customer, pk=customer_id) if customer_id else Customer()
     customer.business_name = data.get('business_name', '').strip()
     if not customer.business_name:
@@ -785,6 +826,10 @@ def customer_save(request, customer_id=None):
     customer.county = data.get('county', '').strip()
     customer.zip_code = data.get('zip_code', '').strip()
     customer.notes = data.get('notes', '').strip()
+
+    new_password = data.get('portal_password', '').strip()
+    if new_password:
+        customer.portal_password = new_password
 
     def _flt(key):
         try: return float(data[key]) if data.get(key) is not None else None
@@ -801,6 +846,7 @@ def customer_save(request, customer_id=None):
         _sync_primary_location(customer)
     except Exception:
         pass
+    _sync_portal_user(customer, new_password, is_new)
 
     locs = [{'id': l.id, 'label': l.label, 'address': l.address,
               'city': l.city, 'state': l.state, 'county': l.county,
