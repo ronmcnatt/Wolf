@@ -1701,11 +1701,15 @@ def admin_process_mining(request):
 
 @role_required('admin')
 def admin_demo(request):
-    customer_count = Customer.objects.filter(demo=True).count()
-    location_count = CustomerLocation.objects.filter(customer__demo=True).count()
+    customer_count  = Customer.objects.filter(demo=True).count()
+    location_count  = CustomerLocation.objects.filter(customer__demo=True).count()
+    completed_jobs  = Job.objects.filter(customer_ref__demo=True, status='completed').count()
+    pending_jobs    = Job.objects.filter(customer_ref__demo=True, status='pending').count()
     return render(request, 'technician/admin_demo.html', {
         'customer_count': customer_count,
         'location_count': location_count,
+        'completed_jobs': completed_jobs,
+        'pending_jobs':   pending_jobs,
     })
 
 
@@ -1756,6 +1760,124 @@ def admin_demo_reload(request):
             'customers': customers,
             'locations': locations,
             'jobs_relinked': jobs_relinked,
+        })
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=500)
+
+
+@role_required('admin')
+def admin_demo_reload_jobs(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    import os, json as _json
+    from datetime import date, timedelta
+    import random
+    from django.db import connection, transaction
+
+    sql_dir  = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'sql')
+    seed_path = os.path.join(sql_dir, 'demo_jobs_seed.json')
+
+    records = _json.load(open(seed_path))
+
+    # Calculate the next 3 business days (Mon–Fri) starting today.
+    def business_days(n=3):
+        days, d = [], date.today()
+        while len(days) < n:
+            if d.weekday() < 5:
+                days.append(d)
+            d += timedelta(days=1)
+        return days
+
+    bdays = business_days(3)
+
+    is_postgres = 'postgresql' in connection.settings_dict.get('ENGINE', '')
+
+    try:
+        with transaction.atomic():
+            # Snapshot TestResult→job links before delete NULLs them.
+            tr_links = list(
+                TestResult.objects.filter(job__customer_ref__demo=True)
+                .values('id', 'job_id')
+            )
+
+            # Delete existing demo jobs.
+            delete_sql = open(os.path.join(sql_dir, 'demo_jobs_delete.sql')).read()
+            for stmt in [s.strip() for s in delete_sql.split(';') if s.strip() and not s.strip().startswith('--')]:
+                connection.cursor().execute(stmt)
+
+            # Re-insert jobs.
+            completed_count = pending_count = 0
+            for r in records:
+                if r['status'] == 'completed':
+                    Job.objects.create(
+                        id=r['id'],
+                        status=r['status'],
+                        customer_ref_id=r['customer_ref_id'],
+                        location_ref_id=r['location_ref_id'],
+                        customer=r['customer'],
+                        address=r['address'],
+                        contact=r['contact'],
+                        phone=r['phone'],
+                        state=r['state'],
+                        county=r['county'],
+                        scheduled_date=r['scheduled_date'],
+                        scheduled_time=r['scheduled_time'],
+                        assigned_to_id=r['assigned_to_id'],
+                        device_type=r['device_type'],
+                        device_size=r['device_size'],
+                        device_make=r['device_make'],
+                        device_model=r['device_model'],
+                        serial=r['serial'],
+                        device_notes=r['device_notes'],
+                        lat=r['lat'], lng=r['lng'],
+                        device_lat=r['device_lat'], device_lng=r['device_lng'],
+                        notes=r['notes'],
+                    )
+                    completed_count += 1
+                else:
+                    Job.objects.create(
+                        id=r['id'],
+                        status='pending',
+                        customer_ref_id=r['customer_ref_id'],
+                        location_ref_id=r['location_ref_id'],
+                        customer=r['customer'],
+                        address=r['address'],
+                        contact=r['contact'],
+                        phone=r['phone'],
+                        state=r['state'],
+                        county=r['county'],
+                        scheduled_date=random.choice(bdays),
+                        scheduled_time=r['scheduled_time'],
+                        assigned_to_id=None,
+                        device_type=r['device_type'],
+                        device_size=r['device_size'],
+                        device_make=r['device_make'],
+                        device_model=r['device_model'],
+                        serial=r['serial'],
+                        device_notes=r['device_notes'],
+                        lat=r['lat'], lng=r['lng'],
+                        device_lat=r['device_lat'], device_lng=r['device_lng'],
+                        notes=r['notes'],
+                    )
+                    pending_count += 1
+
+            # Reset PostgreSQL sequence.
+            if is_postgres:
+                connection.cursor().execute(
+                    "SELECT setval(pg_get_serial_sequence('technician_job', 'id'), "
+                    "COALESCE(MAX(id), 1)) FROM technician_job;"
+                )
+
+            # Restore TestResult→job links.
+            for link in tr_links:
+                TestResult.objects.filter(pk=link['id']).update(job_id=link['job_id'])
+
+        return JsonResponse({
+            'ok': True,
+            'completed': completed_count,
+            'pending': pending_count,
+            'bdays': [str(d) for d in bdays],
         })
     except Exception as e:
         return JsonResponse({'ok': False, 'error': str(e)}, status=500)

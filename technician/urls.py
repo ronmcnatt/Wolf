@@ -39,6 +39,7 @@ urlpatterns = [
     path('admin/processmining/', views.admin_process_mining, name='admin_process_mining'),
     path('admin/demo/', views.admin_demo, name='admin_demo'),
     path('admin/demo/reload/', views.admin_demo_reload, name='admin_demo_reload'),
+    path('admin/demo/reload-jobs/', views.admin_demo_reload_jobs, name='admin_demo_reload_jobs'),
 
     # Customer
     path('customer/', views.customer_dashboard, name='customer_dashboard'),
