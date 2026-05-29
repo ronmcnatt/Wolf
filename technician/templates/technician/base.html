@@ -34,6 +34,27 @@
     </div>
   </nav>
 
+  {% if messages %}
+  <div id="flash-messages" style="position:fixed; top:64px; left:50%; transform:translateX(-50%); z-index:9999; display:flex; flex-direction:column; gap:8px; min-width:320px; max-width:600px;">
+    {% for message in messages %}
+    <div class="flash-msg" style="background:{% if message.tags == 'error' %}#fee2e2{% elif message.tags == 'warning' %}#fef3c7{% else %}#d1fae5{% endif %}; color:{% if message.tags == 'error' %}#b91c1c{% elif message.tags == 'warning' %}#92400e{% else %}#065f46{% endif %}; border:1px solid {% if message.tags == 'error' %}#fca5a5{% elif message.tags == 'warning' %}#fcd34d{% else %}#6ee7b7{% endif %}; border-radius:8px; padding:12px 20px; font-size:14px; font-weight:500; box-shadow:0 4px 16px rgba(0,0,0,0.12); display:flex; align-items:center; justify-content:space-between; gap:12px;">
+      <span>{% if message.tags != 'error' and message.tags != 'warning' %}✓ {% endif %}{{ message }}</span>
+      <button onclick="this.parentElement.remove()" style="background:none;border:none;cursor:pointer;font-size:16px;line-height:1;opacity:0.6;">✕</button>
+    </div>
+    {% endfor %}
+  </div>
+  <script>
+    window.scrollTo(0, 0);
+    setTimeout(() => {
+      document.querySelectorAll('.flash-msg').forEach(el => {
+        el.style.transition = 'opacity 0.5s';
+        el.style.opacity = '0';
+        setTimeout(() => el.remove(), 500);
+      });
+    }, 4000);
+  </script>
+  {% endif %}
+
   {% block content %}{% endblock %}
 
   <footer class="session-footer">

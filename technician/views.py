@@ -8,6 +8,7 @@ import urllib.parse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
+from django.contrib import messages
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -720,7 +721,8 @@ def ops_customer_form(request, customer_id=None):
                 _sync_primary_location(customer)
             except Exception:
                 pass
-            return redirect('/tech/ops/?tab=customers')
+            messages.success(request, f'"{customer.business_name}" saved successfully.')
+            return redirect(f'/tech/ops/customers/{customer.id}/edit/')
 
     job_history = []
     locations = []
