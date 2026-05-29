@@ -34,6 +34,7 @@ class Customer(models.Model):
     zip_code = models.CharField(max_length=10, blank=True)
     notes = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
+    demo = models.BooleanField(default=False)
     lat = models.FloatField(null=True, blank=True)
     lng = models.FloatField(null=True, blank=True)
     device_lat = models.FloatField(null=True, blank=True)
