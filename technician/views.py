@@ -2017,15 +2017,34 @@ def seed_customer_portal_users(request):
 
 @role_required('customer')
 def customer_dashboard(request):
-    recent_results = TestResult.objects.filter(
-        customer__icontains=request.user.get_full_name() or request.user.username
-    ).order_by('-submitted_at')[:10]
-    upcoming_jobs = Job.objects.filter(
-        status__in=('pending', 'in_progress')
-    ).filter(
-        customer__icontains=request.user.get_full_name() or request.user.username
-    ).order_by('scheduled_date', 'scheduled_time')[:5]
+    try:
+        customer_record = Customer.objects.get(linked_user=request.user)
+    except Customer.DoesNotExist:
+        customer_record = None
+
+    if customer_record:
+        upcoming_jobs = Job.objects.filter(
+            customer_ref=customer_record,
+            status__in=('pending', 'in_progress'),
+        ).order_by('scheduled_date', 'scheduled_time')[:10]
+
+        all_jobs = Job.objects.filter(
+            customer_ref=customer_record,
+        ).prefetch_related('test_results').order_by('-scheduled_date', '-scheduled_time')[:30]
+    else:
+        # Fallback for accounts not yet linked to a Customer record
+        name = request.user.get_full_name() or request.user.username
+        upcoming_jobs = Job.objects.filter(
+            status__in=('pending', 'in_progress'),
+            customer__icontains=name,
+        ).order_by('scheduled_date', 'scheduled_time')[:10]
+
+        all_jobs = Job.objects.filter(
+            customer__icontains=name,
+        ).prefetch_related('test_results').order_by('-scheduled_date', '-scheduled_time')[:30]
+
     return render(request, 'technician/customer_dashboard.html', {
-        'recent_results': recent_results,
+        'customer_record': customer_record,
         'upcoming_jobs': upcoming_jobs,
+        'all_jobs': all_jobs,
     })
