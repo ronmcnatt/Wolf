@@ -33,6 +33,7 @@ class Customer(models.Model):
     county = models.CharField(max_length=100, blank=True)
     zip_code = models.CharField(max_length=10, blank=True)
     notes = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
     lat = models.FloatField(null=True, blank=True)
     lng = models.FloatField(null=True, blank=True)
     device_lat = models.FloatField(null=True, blank=True)

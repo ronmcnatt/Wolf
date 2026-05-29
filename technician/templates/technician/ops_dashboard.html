@@ -40,12 +40,19 @@
   <!-- Search -->
   <form method="GET" action="{% url 'ops_dashboard' %}" class="filter-bar" style="margin-bottom:20px;">
     <input type="hidden" name="tab" value="customers">
+    {% if show_inactive %}<input type="hidden" name="show_inactive" value="1">{% endif %}
     <div class="filter-group" style="flex:1;">
       <label>Search</label>
       <input type="text" name="csearch" value="{{ csearch }}" placeholder="Business name, city, or county…">
     </div>
     <button type="submit" class="btn btn-outline">Search</button>
     <a href="?tab=customers" class="btn btn-outline">Clear</a>
+    {% if inactive_count %}
+    <a href="?tab=customers{% if csearch %}&csearch={{ csearch }}{% endif %}{% if not show_inactive %}&show_inactive=1{% endif %}"
+       class="btn btn-outline" style="{% if show_inactive %}border-color:#fcd34d;color:#92400e;{% else %}color:var(--muted);{% endif %}">
+      {% if show_inactive %}Hide Inactive{% else %}Show Inactive ({{ inactive_count }}){% endif %}
+    </a>
+    {% endif %}
   </form>
 
   {% if customer_rows %}
@@ -67,7 +74,10 @@
         {% for row in customer_rows %}
         <tr>
           <td class="td-customer">
-            <div style="font-weight:600;">{{ row.customer.business_name }}</div>
+            <div style="font-weight:600;">
+              {{ row.customer.business_name }}
+              {% if not row.customer.is_active %}<span style="background:#fee2e2;color:#b91c1c;font-size:10px;font-weight:600;border-radius:3px;padding:1px 5px;vertical-align:middle;margin-left:4px;">INACTIVE</span>{% endif %}
+            </div>
             {% if row.customer.email %}<div style="font-size:12px; color:var(--muted);">{{ row.customer.email }}</div>{% endif %}
             {% if row.customer.website %}<div style="font-size:12px;"><a href="{{ row.customer.website }}" target="_blank" rel="noopener" style="color:var(--teal);">🌐 Website</a></div>{% endif %}
           </td>

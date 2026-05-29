@@ -359,8 +359,11 @@ def ops_dashboard(request):
     ])
 
     # ── Customers tab ──
-    csearch   = request.GET.get('csearch', '').strip()
+    csearch      = request.GET.get('csearch', '').strip()
+    show_inactive = request.GET.get('show_inactive') == '1'
     customers = Customer.objects.prefetch_related('jobs__test_results').all()
+    if not show_inactive:
+        customers = customers.filter(is_active=True)
     if csearch:
         customers = customers.filter(business_name__icontains=csearch) | \
                     customers.filter(city__icontains=csearch) | \
@@ -390,7 +393,9 @@ def ops_dashboard(request):
         'total': total, 'unassigned': unassigned, 'completed': completed, 'pending': pending,
         # customers
         'customer_rows': customer_rows, 'csearch': csearch,
-        'total_customers': Customer.objects.count(),
+        'show_inactive': show_inactive,
+        'inactive_count': Customer.objects.filter(is_active=False).count(),
+        'total_customers': Customer.objects.filter(is_active=True).count(),
         # import
         'import_summary': import_summary,
     })
@@ -861,6 +866,39 @@ def location_delete(request, location_id):
     loc = get_object_or_404(CustomerLocation, pk=location_id)
     loc.delete()
     return JsonResponse({'ok': True})
+
+
+@role_required('operations', 'manager')
+def job_delete(request, job_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    job = get_object_or_404(Job, pk=job_id)
+    customer_id = job.customer_ref_id
+    job.delete()
+    return JsonResponse({'ok': True, 'customer_id': customer_id})
+
+
+@role_required('operations', 'manager')
+def customer_delete(request, customer_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    customer = get_object_or_404(Customer, pk=customer_id)
+    if customer.jobs.exists():
+        return JsonResponse({'error': 'Customer has jobs and cannot be deleted.'}, status=400)
+    customer.delete()
+    messages.success(request, f'Customer deleted.')
+    return JsonResponse({'ok': True})
+
+
+@role_required('operations', 'manager')
+def customer_set_active(request, customer_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    customer = get_object_or_404(Customer, pk=customer_id)
+    customer.is_active = not customer.is_active
+    customer.save(update_fields=['is_active'])
+    state = 'active' if customer.is_active else 'inactive'
+    return JsonResponse({'ok': True, 'is_active': customer.is_active, 'state': state})
 
 
 # ── Temporary: seed historical job/test data on Render ────────────────────────

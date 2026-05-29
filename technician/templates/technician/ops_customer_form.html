@@ -13,11 +13,24 @@
 
   <div class="tech-page-header">
     <div>
-      <h1>{% if customer %}{{ customer.business_name }}{% else %}New Customer{% endif %}</h1>
+      <h1>
+        {% if customer %}{{ customer.business_name }}{% else %}New Customer{% endif %}
+        {% if customer and not customer.is_active %}<span style="background:#fee2e2;color:#b91c1c;font-size:12px;font-weight:600;border-radius:4px;padding:2px 8px;vertical-align:middle;margin-left:8px;">INACTIVE</span>{% endif %}
+      </h1>
       <p>{% if customer %}Edit customer details and view service history{% else %}Add a new customer account{% endif %}</p>
     </div>
     {% if customer %}
-    <a href="{% url 'ops_job_new' %}?customer={{ customer.id }}" class="btn btn-primary">+ New Job</a>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <a href="{% url 'ops_job_new' %}?customer={{ customer.id }}" class="btn btn-primary">+ New Job</a>
+      {% if customer.is_active %}
+      <button type="button" class="btn btn-outline" onclick="toggleCustomerActive()" style="color:#92400e;border-color:#fcd34d;">Deactivate</button>
+      {% else %}
+      <button type="button" class="btn btn-outline" onclick="toggleCustomerActive()" style="color:#065f46;border-color:#6ee7b7;">Reactivate</button>
+      {% endif %}
+      {% if not customer.jobs.exists %}
+      <button type="button" class="btn btn-sm" onclick="deleteCustomer()" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;">Delete Customer</button>
+      {% endif %}
+    </div>
     {% endif %}
   </div>
 
@@ -254,6 +267,7 @@
                 <th>Technician</th>
                 <th>Status</th>
                 <th>Result</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -293,6 +307,9 @@
                   {% else %}
                   <span style="color:var(--muted);font-size:12px;">—</span>
                   {% endif %}
+                </td>
+                <td>
+                  <button type="button" onclick="deleteJob({{ job.id }}, this)" style="background:none;border:none;cursor:pointer;color:#b91c1c;font-size:18px;line-height:1;padding:2px 6px;" title="Delete job">🗑</button>
                 </td>
               </tr>
               {% endwith %}
@@ -711,5 +728,43 @@
   document.getElementById('location-modal').addEventListener('click', function(e) {
     if (e.target === this) closeLocationModal();
   });
+
+  function deleteJob(jobId, btn) {
+    if (!confirm('Delete this job? This cannot be undone.')) return;
+    fetch(`/tech/ops/jobs/${jobId}/delete/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCsrf()},
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) { alert('Delete failed.'); return; }
+      btn.closest('tr').remove();
+    });
+  }
+
+  function deleteCustomer() {
+    if (!confirm('Permanently delete this customer? This cannot be undone.')) return;
+    fetch(`/tech/ops/customers/{{ customer.id }}/delete/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCsrf()},
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) { alert(data.error || 'Delete failed.'); return; }
+      window.location.href = '/tech/ops/?tab=customers';
+    });
+  }
+
+  function toggleCustomerActive() {
+    fetch(`/tech/ops/customers/{{ customer.id }}/set-active/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCsrf()},
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) { alert('Failed to update status.'); return; }
+      window.location.reload();
+    });
+  }
 </script>
 {% endblock %}
