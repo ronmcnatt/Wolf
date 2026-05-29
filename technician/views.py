@@ -2023,23 +2023,29 @@ def customer_dashboard(request):
         customer_record = None
 
     locations = []
-    location_filter = None
+    selected_loc_ids = []   # list of str IDs or 'primary'
+    show_primary = False
 
     if customer_record:
+        from django.db.models import Q
         locations = list(customer_record.locations.order_by('label'))
-        loc_id = request.GET.get('location')
-        if loc_id:
-            location_filter = next((l for l in locations if str(l.id) == loc_id), None)
+        selected_loc_ids = request.GET.getlist('location')
+        show_primary = 'primary' in selected_loc_ids
+        named_ids = [l for l in selected_loc_ids if l != 'primary' and l.isdigit()]
 
         base_qs = Job.objects.filter(customer_ref=customer_record)
-        if location_filter:
-            base_qs = base_qs.filter(location_ref=location_filter)
+        if selected_loc_ids:
+            q = Q()
+            if show_primary:
+                q |= Q(location_ref__isnull=True)
+            if named_ids:
+                q |= Q(location_ref_id__in=named_ids)
+            base_qs = base_qs.filter(q)
 
         upcoming_jobs = (base_qs
                          .filter(status__in=('pending', 'in_progress'))
                          .select_related('assigned_to', 'location_ref')
                          .order_by('scheduled_date', 'scheduled_time')[:10])
-
         all_jobs = (base_qs
                     .select_related('assigned_to', 'location_ref')
                     .prefetch_related('test_results')
@@ -2059,7 +2065,7 @@ def customer_dashboard(request):
     return render(request, 'technician/customer_dashboard.html', {
         'customer_record': customer_record,
         'locations': locations,
-        'location_filter': location_filter,
+        'selected_loc_ids': selected_loc_ids,
         'upcoming_jobs': upcoming_jobs,
         'all_jobs': all_jobs,
     })
@@ -2131,25 +2137,70 @@ def customer_edit_profile(request):
         return redirect('customer_dashboard')
 
     success = False
+    errors = {}
+
     if request.method == 'POST':
         p = request.POST
         contact_name = p.get('contact_name', '').strip()
-        phone = p.get('phone', '').strip()
+        phone        = p.get('phone', '').strip()
+        new_email    = p.get('email', '').strip()
+        cur_password = p.get('current_password', '').strip()
+        new_password = p.get('new_password', '').strip()
+        confirm_pw   = p.get('confirm_password', '').strip()
 
-        customer_record.contact_name = contact_name
-        customer_record.phone = phone
-        customer_record.save(update_fields=['contact_name', 'phone'])
+        # Validate email uniqueness if changing
+        if new_email and new_email != request.user.username:
+            if User.objects.filter(username=new_email).exclude(pk=request.user.pk).exists():
+                errors['email'] = 'That email address is already in use by another account.'
 
-        parts = contact_name.split(None, 1)
-        request.user.first_name = parts[0] if parts else ''
-        request.user.last_name = parts[1] if len(parts) > 1 else ''
-        request.user.save(update_fields=['first_name', 'last_name'])
+        # Validate password change (only if new_password provided)
+        if new_password:
+            if not cur_password:
+                errors['current_password'] = 'Enter your current password to set a new one.'
+            elif not request.user.check_password(cur_password):
+                errors['current_password'] = 'Current password is incorrect.'
+            elif new_password != confirm_pw:
+                errors['confirm_password'] = 'New passwords do not match.'
 
-        success = True
+        if not errors:
+            customer_record.contact_name = contact_name
+            customer_record.phone        = phone
+            customer_field_updates = ['contact_name', 'phone']
+
+            parts = contact_name.split(None, 1)
+            request.user.first_name = parts[0] if parts else ''
+            request.user.last_name  = parts[1] if len(parts) > 1 else ''
+            user_field_updates = ['first_name', 'last_name']
+
+            if new_email and new_email != request.user.username:
+                request.user.username = new_email
+                request.user.email    = new_email
+                customer_record.email = new_email
+                customer_field_updates.append('email')
+                user_field_updates += ['username', 'email']
+
+            if new_password:
+                request.user.set_password(new_password)
+                customer_record.portal_password = new_password
+                customer_field_updates.append('portal_password')
+                # set_password modifies password field; save without update_fields restriction
+                user_field_updates = None
+
+            customer_record.save(update_fields=customer_field_updates)
+            if user_field_updates:
+                request.user.save(update_fields=user_field_updates)
+            else:
+                request.user.save()
+
+            if new_password:
+                update_session_auth_hash(request, request.user)
+
+            success = True
 
     return render(request, 'technician/customer_edit_profile.html', {
         'customer_record': customer_record,
         'success': success,
+        'errors': errors,
     })
 
 

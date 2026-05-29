@@ -8,7 +8,7 @@
   <div class="tech-page-header">
     <div>
       <h1>Edit Profile</h1>
-      <p>Update your contact information for {{ customer_record.business_name }}</p>
+      <p>Update your contact information and login credentials for {{ customer_record.business_name }}</p>
     </div>
   </div>
 
@@ -18,38 +18,91 @@
   </div>
   {% endif %}
 
-  <div class="card" style="max-width:500px;">
-    <form method="POST">
-      {% csrf_token %}
+  <form method="POST" style="max-width:560px;">
+    {% csrf_token %}
 
-      <div class="form-group" style="margin-bottom:16px;">
-        <label>Portal Username (Email)</label>
-        <input type="text" value="{{ request.user.username }}" disabled style="background:#f9fafb;color:var(--muted);">
-        <p style="font-size:11px;color:var(--muted);margin-top:4px;">Username cannot be changed. Contact support if you need to update it.</p>
+    <!-- CONTACT INFO -->
+    <div class="card" style="margin-bottom:16px;">
+      <h3>Contact Information</h3>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Business Name</label>
+        <input type="text" value="{{ customer_record.business_name }}" disabled style="background:#f9fafb;color:var(--muted);">
+        <p style="font-size:11px;color:var(--muted);margin-top:3px;">Business name changes must be made by your account manager.</p>
       </div>
-
-      <div class="form-group" style="margin-bottom:16px;">
+      <div class="form-group" style="margin-bottom:14px;">
         <label>Contact Name</label>
         <input type="text" name="contact_name" value="{{ customer_record.contact_name|default:'' }}" placeholder="Your full name">
       </div>
-
-      <div class="form-group" style="margin-bottom:20px;">
+      <div class="form-group">
         <label>Phone</label>
         <input type="tel" name="phone" value="{{ customer_record.phone|default:'' }}" placeholder="(904) 555-0100">
       </div>
+    </div>
 
-      <div class="form-group" style="margin-bottom:20px;">
-        <label>Business Name</label>
-        <input type="text" value="{{ customer_record.business_name }}" disabled style="background:#f9fafb;color:var(--muted);">
-        <p style="font-size:11px;color:var(--muted);margin-top:4px;">Business name changes must be made by your account manager.</p>
+    <!-- LOGIN / USERNAME -->
+    <div class="card" style="margin-bottom:16px;">
+      <h3>Login — Username</h3>
+      <div class="form-group" style="margin-bottom:6px;">
+        <label>Email / Username</label>
+        <input type="email" name="email" value="{{ request.user.username }}" placeholder="you@example.com">
+        {% if errors.email %}
+        <p style="font-size:12px;color:#b91c1c;margin-top:4px;">{{ errors.email }}</p>
+        {% endif %}
+        <p style="font-size:11px;color:var(--muted);margin-top:4px;">Changing your email will also change your login username.</p>
+      </div>
+    </div>
+
+    <!-- LOGIN / PASSWORD -->
+    <div class="card" style="margin-bottom:20px;">
+      <h3>Login — Password</h3>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Leave the fields below blank to keep your current password.</p>
+
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Current Password</label>
+        <div style="position:relative;">
+          <input type="password" name="current_password" id="cur-pw" placeholder="Enter current password" autocomplete="current-password"
+            style="width:100%;padding-right:36px;">
+          <button type="button" onclick="togglePw('cur-pw')" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:15px;color:var(--muted);padding:0;">👁</button>
+        </div>
+        {% if errors.current_password %}
+        <p style="font-size:12px;color:#b91c1c;margin-top:4px;">{{ errors.current_password }}</p>
+        {% endif %}
       </div>
 
-      <div style="display:flex;gap:10px;justify-content:flex-end;">
-        <a href="{% url 'customer_dashboard' %}" class="btn btn-outline">Cancel</a>
-        <button type="submit" class="btn btn-primary">Save Changes</button>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>New Password</label>
+        <div style="position:relative;">
+          <input type="password" name="new_password" id="new-pw" placeholder="Enter new password" autocomplete="new-password"
+            style="width:100%;padding-right:36px;">
+          <button type="button" onclick="togglePw('new-pw')" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:15px;color:var(--muted);padding:0;">👁</button>
+        </div>
       </div>
-    </form>
-  </div>
+
+      <div class="form-group">
+        <label>Confirm New Password</label>
+        <div style="position:relative;">
+          <input type="password" name="confirm_password" id="confirm-pw" placeholder="Re-enter new password" autocomplete="new-password"
+            style="width:100%;padding-right:36px;">
+          <button type="button" onclick="togglePw('confirm-pw')" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:15px;color:var(--muted);padding:0;">👁</button>
+        </div>
+        {% if errors.confirm_password %}
+        <p style="font-size:12px;color:#b91c1c;margin-top:4px;">{{ errors.confirm_password }}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-bottom:24px;">
+      <a href="{% url 'customer_dashboard' %}" class="btn btn-outline">Cancel</a>
+      <button type="submit" class="btn btn-primary">Save Changes</button>
+    </div>
+  </form>
 
 </div>
+
+<script>
+function togglePw(id) {
+  const f = document.getElementById(id);
+  f.type = f.type === 'password' ? 'text' : 'password';
+}
+</script>
 {% endblock %}

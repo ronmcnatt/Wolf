@@ -15,26 +15,27 @@
     </div>
   </div>
 
-  <!-- LOCATION FILTER (only if multiple locations exist) -->
+  <!-- LOCATION FILTER (multi-select dropdown — shown when named locations exist) -->
   {% if locations %}
-  <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
-    <span style="font-size:13px; color:var(--muted); font-weight:600;">Filter by location:</span>
-    <a href="{% url 'customer_dashboard' %}"
-       style="font-size:13px; padding:4px 12px; border-radius:20px; border:1px solid var(--border); background:{% if not location_filter %}var(--teal){% else %}white{% endif %}; color:{% if not location_filter %}white{% else %}var(--navy){% endif %}; text-decoration:none;">
-      All Locations
-    </a>
-    {% for loc in locations %}
-    <a href="{% url 'customer_dashboard' %}?location={{ loc.id }}"
-       style="font-size:13px; padding:4px 12px; border-radius:20px; border:1px solid var(--border); background:{% if location_filter.id == loc.id %}var(--teal){% else %}white{% endif %}; color:{% if location_filter.id == loc.id %}white{% else %}var(--navy){% endif %}; text-decoration:none;">
-      {{ loc.label }}
-    </a>
-    {% endfor %}
-  </div>
+  <form method="GET" id="loc-filter-form" style="display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
+    <label for="loc-filter-sel" style="font-size:13px; color:var(--muted); font-weight:600; white-space:nowrap;">Filter by location:</label>
+    <div style="position:relative;">
+      <select id="loc-filter-sel" name="location" multiple
+        onchange="document.getElementById('loc-filter-form').submit()"
+        style="min-width:220px; max-width:340px; border:1px solid var(--border); border-radius:8px; padding:5px 8px; font-size:13px; color:var(--navy); background:white; cursor:pointer;">
+        <option value="primary" {% if 'primary' in selected_loc_ids %}selected{% endif %}>Primary Address</option>
+        {% for loc in locations %}
+        <option value="{{ loc.id }}" {% if loc.id|stringformat:"s" in selected_loc_ids %}selected{% endif %}>{{ loc.label }}</option>
+        {% endfor %}
+      </select>
+      <p style="font-size:11px; color:var(--muted); margin-top:3px;">Hold Ctrl / ⌘ to select multiple. <a href="{% url 'customer_dashboard' %}" style="color:var(--teal);">Clear filter</a></p>
+    </div>
+  </form>
   {% endif %}
 
   <!-- UPCOMING SERVICE -->
   <div class="card" style="margin-bottom:20px;">
-    <h3>Upcoming Service{% if location_filter %} — {{ location_filter.label }}{% endif %}</h3>
+    <h3>Upcoming Service{% if selected_loc_ids %} — Filtered{% endif %}</h3>
     {% if upcoming_jobs %}
       <div class="ops-table-wrap">
         <table class="ops-table">
@@ -87,7 +88,7 @@
 
   <!-- SERVICE HISTORY -->
   <div class="card">
-    <h3>Service History{% if location_filter %} — {{ location_filter.label }}{% endif %}</h3>
+    <h3>Service History{% if selected_loc_ids %} — Filtered{% endif %}</h3>
     {% if all_jobs %}
       <div class="ops-table-wrap">
         <table class="ops-table">
