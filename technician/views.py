@@ -879,6 +879,16 @@ def job_delete(request, job_id):
 
 
 @role_required('operations', 'manager')
+def job_cancel(request, job_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    job = get_object_or_404(Job, pk=job_id)
+    job.status = 'cancelled'
+    job.save(update_fields=['status'])
+    return JsonResponse({'ok': True})
+
+
+@role_required('operations', 'manager')
 def customer_delete(request, customer_id):
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)

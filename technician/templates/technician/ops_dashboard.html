@@ -243,8 +243,12 @@
                   {% else %}○ Pending{% endif %}
                 </span>
               </td>
-              <td>
+              <td style="white-space:nowrap;">
                 <a href="{% url 'ops_job_edit' job.id %}" class="btn btn-outline btn-sm">Edit</a>
+                {% if job.status != 'cancelled' %}
+                <button type="button" class="btn btn-outline btn-sm" style="color:#92400e;border-color:#fcd34d;" onclick="cancelJob({{ job.id }}, this)">Cancel</button>
+                {% endif %}
+                <button type="button" class="btn btn-sm" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;" onclick="deleteJob({{ job.id }}, this)">Delete</button>
               </td>
             </tr>
             {% endfor %}
@@ -492,6 +496,42 @@ function runGeocodeAddresses(resume) {
       btn.textContent = '📍 Geocode Addresses';
       showSchedResult('error', 'Geocode failed: ' + err.message);
     });
+}
+
+function getCsrf() {
+  return CSRF_TOKEN;
+}
+
+function cancelJob(jobId, btn) {
+  if (!confirm('Mark this job as cancelled?')) return;
+  fetch(`/tech/ops/jobs/${jobId}/cancel/`, {
+    method: 'POST',
+    headers: {'X-CSRFToken': getCsrf()},
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (!data.ok) { alert('Failed to cancel job.'); return; }
+    const row = btn.closest('tr');
+    const statusCell = row.querySelector('.badge[class*="badge-"]');
+    if (statusCell) {
+      statusCell.className = 'badge badge-cancelled';
+      statusCell.textContent = '✕ Cancelled';
+    }
+    btn.remove();
+  });
+}
+
+function deleteJob(jobId, btn) {
+  if (!confirm('Permanently delete this job? This cannot be undone.')) return;
+  fetch(`/tech/ops/jobs/${jobId}/delete/`, {
+    method: 'POST',
+    headers: {'X-CSRFToken': getCsrf()},
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (!data.ok) { alert('Failed to delete job.'); return; }
+    btn.closest('tr').remove();
+  });
 }
 </script>
 {% endblock %}

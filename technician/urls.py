@@ -23,6 +23,7 @@ urlpatterns = [
     path('ops/customers/<int:customer_id>/locations/<int:location_id>/save/', views.location_save, name='location_save_edit'),
     path('ops/locations/<int:location_id>/delete/', views.location_delete, name='location_delete'),
     path('ops/jobs/<int:job_id>/delete/', views.job_delete, name='job_delete'),
+    path('ops/jobs/<int:job_id>/cancel/', views.job_cancel, name='job_cancel'),
     path('ops/customers/<int:customer_id>/delete/', views.customer_delete, name='customer_delete'),
     path('ops/customers/<int:customer_id>/set-active/', views.customer_set_active, name='customer_set_active'),
     path('ops/autoschedule/', views.ops_auto_schedule, name='ops_auto_schedule'),
