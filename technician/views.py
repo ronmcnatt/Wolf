@@ -1851,14 +1851,15 @@ def _run_demo_customer_reload():
             .values('id', 'customer_ref_id', 'location_ref_id')
         )
 
-        # Some jobs may reference a demo location but not a demo customer
-        # (orphaned jobs). Delete them before the location delete so the FK
-        # constraint doesn't block.
+        # The DB FK on location_ref_id may be RESTRICT rather than SET NULL,
+        # so explicitly NULL it out on every job referencing a demo location
+        # before the delete SQL runs. job_links already captured the values
+        # needed to restore them afterwards.
         demo_loc_ids = list(
             CustomerLocation.objects.filter(customer__demo=True).values_list('pk', flat=True)
         )
-        tracked_ids = {link['id'] for link in job_links}
-        Job.objects.filter(location_ref_id__in=demo_loc_ids).exclude(pk__in=tracked_ids).delete()
+        if demo_loc_ids:
+            Job.objects.filter(location_ref_id__in=demo_loc_ids).update(location_ref_id=None)
 
         _exec(delete_sql)
         _exec(seed_sql)
