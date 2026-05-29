@@ -2022,29 +2022,188 @@ def customer_dashboard(request):
     except Customer.DoesNotExist:
         customer_record = None
 
+    locations = []
+    location_filter = None
+
     if customer_record:
-        upcoming_jobs = Job.objects.filter(
-            customer_ref=customer_record,
-            status__in=('pending', 'in_progress'),
-        ).order_by('scheduled_date', 'scheduled_time')[:10]
+        locations = list(customer_record.locations.order_by('label'))
+        loc_id = request.GET.get('location')
+        if loc_id:
+            location_filter = next((l for l in locations if str(l.id) == loc_id), None)
 
-        all_jobs = Job.objects.filter(
-            customer_ref=customer_record,
-        ).prefetch_related('test_results').order_by('-scheduled_date', '-scheduled_time')[:30]
+        base_qs = Job.objects.filter(customer_ref=customer_record)
+        if location_filter:
+            base_qs = base_qs.filter(location_ref=location_filter)
+
+        upcoming_jobs = (base_qs
+                         .filter(status__in=('pending', 'in_progress'))
+                         .select_related('assigned_to', 'location_ref')
+                         .order_by('scheduled_date', 'scheduled_time')[:10])
+
+        all_jobs = (base_qs
+                    .select_related('assigned_to', 'location_ref')
+                    .prefetch_related('test_results')
+                    .order_by('-scheduled_date', '-scheduled_time')[:30])
     else:
-        # Fallback for accounts not yet linked to a Customer record
         name = request.user.get_full_name() or request.user.username
-        upcoming_jobs = Job.objects.filter(
-            status__in=('pending', 'in_progress'),
-            customer__icontains=name,
-        ).order_by('scheduled_date', 'scheduled_time')[:10]
-
-        all_jobs = Job.objects.filter(
-            customer__icontains=name,
-        ).prefetch_related('test_results').order_by('-scheduled_date', '-scheduled_time')[:30]
+        upcoming_jobs = (Job.objects
+                         .filter(status__in=('pending', 'in_progress'), customer__icontains=name)
+                         .select_related('assigned_to', 'location_ref')
+                         .order_by('scheduled_date', 'scheduled_time')[:10])
+        all_jobs = (Job.objects
+                    .filter(customer__icontains=name)
+                    .select_related('assigned_to', 'location_ref')
+                    .prefetch_related('test_results')
+                    .order_by('-scheduled_date', '-scheduled_time')[:30])
 
     return render(request, 'technician/customer_dashboard.html', {
         'customer_record': customer_record,
+        'locations': locations,
+        'location_filter': location_filter,
         'upcoming_jobs': upcoming_jobs,
         'all_jobs': all_jobs,
+    })
+
+
+@role_required('customer')
+def customer_request_test(request):
+    try:
+        customer_record = Customer.objects.get(linked_user=request.user)
+    except Customer.DoesNotExist:
+        return redirect('customer_dashboard')
+
+    locations = list(customer_record.locations.order_by('label'))
+    success = False
+    error = None
+
+    if request.method == 'POST':
+        p = request.POST
+        preferred_date = p.get('preferred_date', '').strip()
+        device_type = p.get('device_type', 'RPZ').strip()
+        notes = p.get('notes', '').strip()
+        loc_id = p.get('location_id', '').strip()
+
+        if not preferred_date:
+            error = 'Please select a preferred date.'
+        else:
+            loc = None
+            if loc_id:
+                loc = next((l for l in locations if str(l.id) == loc_id), None)
+
+            address = (loc.address + ', ' + loc.city if loc and loc.address
+                       else customer_record.address + (', ' + customer_record.city if customer_record.city else ''))
+
+            Job.objects.create(
+                customer_ref=customer_record,
+                location_ref=loc,
+                customer=customer_record.business_name,
+                address=address or customer_record.address,
+                contact=customer_record.contact_name,
+                phone=customer_record.phone,
+                state=loc.state if loc else customer_record.state,
+                county=loc.county if loc else customer_record.county,
+                scheduled_date=preferred_date,
+                scheduled_time='08:00',
+                status='pending',
+                device_type=device_type,
+                lat=loc.lat if loc else customer_record.lat,
+                lng=loc.lng if loc else customer_record.lng,
+                device_lat=loc.device_lat if loc else customer_record.device_lat,
+                device_lng=loc.device_lng if loc else customer_record.device_lng,
+                notes=notes,
+            )
+            success = True
+
+    return render(request, 'technician/customer_request_test.html', {
+        'customer_record': customer_record,
+        'locations': locations,
+        'device_types': Job.DEVICE_TYPES,
+        'success': success,
+        'error': error,
+    })
+
+
+@role_required('customer')
+def customer_edit_profile(request):
+    try:
+        customer_record = Customer.objects.get(linked_user=request.user)
+    except Customer.DoesNotExist:
+        return redirect('customer_dashboard')
+
+    success = False
+    if request.method == 'POST':
+        p = request.POST
+        contact_name = p.get('contact_name', '').strip()
+        phone = p.get('phone', '').strip()
+
+        customer_record.contact_name = contact_name
+        customer_record.phone = phone
+        customer_record.save(update_fields=['contact_name', 'phone'])
+
+        parts = contact_name.split(None, 1)
+        request.user.first_name = parts[0] if parts else ''
+        request.user.last_name = parts[1] if len(parts) > 1 else ''
+        request.user.save(update_fields=['first_name', 'last_name'])
+
+        success = True
+
+    return render(request, 'technician/customer_edit_profile.html', {
+        'customer_record': customer_record,
+        'success': success,
+    })
+
+
+@role_required('customer')
+def customer_manage_locations(request):
+    try:
+        customer_record = Customer.objects.get(linked_user=request.user)
+    except Customer.DoesNotExist:
+        return redirect('customer_dashboard')
+
+    locations = list(customer_record.locations.order_by('label'))
+    error = None
+    success = None
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'save':
+            loc_id = request.POST.get('loc_id', '').strip()
+            label = request.POST.get('label', '').strip() or 'Location'
+            address = request.POST.get('address', '').strip()
+            city = request.POST.get('city', '').strip()
+            state = request.POST.get('state', 'FL').strip()
+            county = request.POST.get('county', '').strip()
+            zip_code = request.POST.get('zip_code', '').strip()
+
+            if loc_id:
+                loc = get_object_or_404(CustomerLocation, pk=loc_id, customer=customer_record)
+            else:
+                loc = CustomerLocation(customer=customer_record)
+
+            loc.label = label
+            loc.address = address
+            loc.city = city
+            loc.state = state
+            loc.county = county
+            loc.zip_code = zip_code
+            loc.save()
+            success = f'Location "{label}" saved.'
+            locations = list(customer_record.locations.order_by('label'))
+
+        elif action == 'delete':
+            loc_id = request.POST.get('loc_id', '').strip()
+            loc = get_object_or_404(CustomerLocation, pk=loc_id, customer=customer_record)
+            label = loc.label
+            loc.delete()
+            success = f'Location "{label}" deleted.'
+            locations = list(customer_record.locations.order_by('label'))
+
+    return render(request, 'technician/customer_locations.html', {
+        'customer_record': customer_record,
+        'locations': locations,
+        'US_STATES': US_STATES,
+        'FL_COUNTIES': FL_COUNTIES,
+        'error': error,
+        'success': success,
     })

@@ -1,0 +1,55 @@
+{% extends "technician/base.html" %}
+
+{% block content %}
+<div class="tech-page">
+
+  <a href="{% url 'customer_dashboard' %}" class="back-link">← Back to Dashboard</a>
+
+  <div class="tech-page-header">
+    <div>
+      <h1>Edit Profile</h1>
+      <p>Update your contact information for {{ customer_record.business_name }}</p>
+    </div>
+  </div>
+
+  {% if success %}
+  <div style="background:#d1fae5;color:#065f46;padding:14px 18px;border-radius:8px;margin-bottom:20px;font-size:14px;font-weight:600;">
+    ✓ Profile updated successfully.
+  </div>
+  {% endif %}
+
+  <div class="card" style="max-width:500px;">
+    <form method="POST">
+      {% csrf_token %}
+
+      <div class="form-group" style="margin-bottom:16px;">
+        <label>Portal Username (Email)</label>
+        <input type="text" value="{{ request.user.username }}" disabled style="background:#f9fafb;color:var(--muted);">
+        <p style="font-size:11px;color:var(--muted);margin-top:4px;">Username cannot be changed. Contact support if you need to update it.</p>
+      </div>
+
+      <div class="form-group" style="margin-bottom:16px;">
+        <label>Contact Name</label>
+        <input type="text" name="contact_name" value="{{ customer_record.contact_name|default:'' }}" placeholder="Your full name">
+      </div>
+
+      <div class="form-group" style="margin-bottom:20px;">
+        <label>Phone</label>
+        <input type="tel" name="phone" value="{{ customer_record.phone|default:'' }}" placeholder="(904) 555-0100">
+      </div>
+
+      <div class="form-group" style="margin-bottom:20px;">
+        <label>Business Name</label>
+        <input type="text" value="{{ customer_record.business_name }}" disabled style="background:#f9fafb;color:var(--muted);">
+        <p style="font-size:11px;color:var(--muted);margin-top:4px;">Business name changes must be made by your account manager.</p>
+      </div>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <a href="{% url 'customer_dashboard' %}" class="btn btn-outline">Cancel</a>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </div>
+    </form>
+  </div>
+
+</div>
+{% endblock %}

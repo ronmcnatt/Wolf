@@ -1,0 +1,85 @@
+{% extends "technician/base.html" %}
+
+{% block content %}
+<div class="tech-page">
+
+  <a href="{% url 'customer_dashboard' %}" class="back-link">← Back to Dashboard</a>
+
+  <div class="tech-page-header">
+    <div>
+      <h1>Request a Test</h1>
+      <p>Submit a backflow test request for {{ customer_record.business_name }}</p>
+    </div>
+  </div>
+
+  {% if success %}
+  <div style="background:#d1fae5;color:#065f46;padding:14px 18px;border-radius:8px;margin-bottom:20px;font-size:14px;font-weight:600;">
+    ✓ Your test request has been submitted. Our team will confirm the appointment shortly.
+    <div style="margin-top:8px;">
+      <a href="{% url 'customer_dashboard' %}" style="color:#065f46;font-weight:600;text-decoration:underline;">Back to dashboard →</a>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if not success %}
+  <div class="card" style="max-width:560px;">
+    {% if error %}
+    <div style="background:#fee2e2;color:#b91c1c;padding:10px 14px;border-radius:6px;margin-bottom:16px;font-size:13px;">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST">
+      {% csrf_token %}
+
+      {% if locations %}
+      <div class="form-group" style="margin-bottom:16px;">
+        <label>Service Location</label>
+        <select name="location_id" style="width:100%;">
+          <option value="">— Primary Address ({{ customer_record.address }}) —</option>
+          {% for loc in locations %}
+          <option value="{{ loc.id }}">{{ loc.label }}{% if loc.address %} — {{ loc.address }}{% if loc.city %}, {{ loc.city }}{% endif %}{% endif %}</option>
+          {% endfor %}
+        </select>
+        <p style="font-size:11px;color:var(--muted);margin-top:4px;">
+          Not seeing a location? <a href="{% url 'customer_manage_locations' %}" style="color:var(--teal);">Add it here</a>.
+        </p>
+      </div>
+      {% else %}
+      <div class="form-group" style="margin-bottom:16px;">
+        <label>Service Address</label>
+        <input type="text" value="{{ customer_record.address }}{% if customer_record.city %}, {{ customer_record.city }}{% endif %}" disabled style="background:#f9fafb;color:var(--muted);">
+        <p style="font-size:11px;color:var(--muted);margin-top:4px;">
+          Need to test at a different location? <a href="{% url 'customer_manage_locations' %}" style="color:var(--teal);">Add a location</a>.
+        </p>
+      </div>
+      {% endif %}
+
+      <div class="form-grid" style="grid-template-columns:1fr 1fr; margin-bottom:0;">
+        <div class="form-group">
+          <label>Device Type</label>
+          <select name="device_type" style="width:100%;">
+            {% for code, label in device_types %}
+            <option value="{{ code }}">{{ code }} — {{ label|slice:"6:" }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Preferred Date <span style="color:var(--danger)">*</span></label>
+          <input type="date" name="preferred_date" required min="{{ today|date:'Y-m-d' }}">
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top:16px; margin-bottom:20px;">
+        <label>Notes <span style="font-size:11px;color:var(--muted);">(optional)</span></label>
+        <textarea name="notes" placeholder="Any details about the device or access instructions…" style="min-height:80px;"></textarea>
+      </div>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <a href="{% url 'customer_dashboard' %}" class="btn btn-outline">Cancel</a>
+        <button type="submit" class="btn btn-primary">Submit Request</button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

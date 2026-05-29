@@ -1,0 +1,167 @@
+{% extends "technician/base.html" %}
+
+{% block content %}
+<div class="tech-page">
+
+  <a href="{% url 'customer_dashboard' %}" class="back-link">← Back to Dashboard</a>
+
+  <div class="tech-page-header">
+    <div>
+      <h1>Manage Locations</h1>
+      <p>Service locations for {{ customer_record.business_name }}</p>
+    </div>
+  </div>
+
+  {% if success %}
+  <div style="background:#d1fae5;color:#065f46;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;font-weight:600;">✓ {{ success }}</div>
+  {% endif %}
+  {% if error %}
+  <div style="background:#fee2e2;color:#b91c1c;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;">{{ error }}</div>
+  {% endif %}
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">
+
+    <!-- EXISTING LOCATIONS -->
+    <div>
+      <div class="card">
+        <h3>Your Locations</h3>
+
+        {% if locations %}
+          {% for loc in locations %}
+          <div style="border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+              <div>
+                <div style="font-weight:600;font-size:14px;margin-bottom:4px;">
+                  <span style="background:var(--teal);color:white;border-radius:4px;padding:2px 8px;font-size:11px;">{{ loc.label }}</span>
+                </div>
+                <div style="font-size:13px;color:var(--text);margin-top:6px;">
+                  {{ loc.address }}{% if loc.city %}, {{ loc.city }}{% endif %}{% if loc.state %} {{ loc.state }}{% endif %}{% if loc.zip_code %} {{ loc.zip_code }}{% endif %}
+                </div>
+                {% if loc.county %}<div style="font-size:12px;color:var(--muted);">{{ loc.county }} County</div>{% endif %}
+              </div>
+              <div style="display:flex;gap:6px;flex-shrink:0;margin-left:10px;">
+                <button type="button" class="btn btn-outline btn-sm"
+                  onclick="loadEditForm({{ loc.id }}, '{{ loc.label|escapejs }}', '{{ loc.address|escapejs }}', '{{ loc.city|escapejs }}', '{{ loc.state|escapejs }}', '{{ loc.county|escapejs }}', '{{ loc.zip_code|escapejs }}')">
+                  Edit
+                </button>
+                <form method="POST" style="display:inline;" onsubmit="return confirm('Delete location \'{{ loc.label }}\'?')">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete">
+                  <input type="hidden" name="loc_id" value="{{ loc.id }}">
+                  <button type="submit" class="btn btn-sm" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;">Delete</button>
+                </form>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div style="text-align:center;padding:24px 0;color:var(--muted);">
+            <div style="font-size:28px;margin-bottom:8px;">📍</div>
+            <p style="font-size:13px;">No service locations added yet.</p>
+            <p style="font-size:12px;">Use the form to add the properties where your backflow devices are installed.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ADD / EDIT FORM -->
+    <div>
+      <div class="card">
+        <h3 id="loc-form-title">Add Location</h3>
+        <form method="POST" id="loc-form">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save">
+          <input type="hidden" name="loc_id" id="loc-id-field" value="">
+
+          <div class="form-group" style="margin-bottom:14px;">
+            <label>Label <span style="font-size:11px;color:var(--muted);">(e.g. Building A, Main Office)</span></label>
+            <input type="text" name="label" id="loc-label" placeholder="Main" required>
+          </div>
+
+          <div class="form-group" style="margin-bottom:14px;">
+            <label>Street Address</label>
+            <input type="text" name="address" id="loc-address" placeholder="123 Main St">
+          </div>
+
+          <div class="form-grid" style="grid-template-columns:1fr 1fr;margin-bottom:0;">
+            <div class="form-group">
+              <label>City</label>
+              <input type="text" name="city" id="loc-city" placeholder="Jacksonville">
+            </div>
+            <div class="form-group">
+              <label>Zip</label>
+              <input type="text" name="zip_code" id="loc-zip" placeholder="32204">
+            </div>
+            <div class="form-group">
+              <label>State</label>
+              <select name="state" id="loc-state" onchange="updateLocCounties(this.value)">
+                {% for code, name in US_STATES %}
+                <option value="{{ code }}" {% if code == 'FL' %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>County</label>
+              <select name="county" id="loc-county">
+                <option value="">— Select county —</option>
+                {% for county in FL_COUNTIES %}
+                <option value="{{ county }}">{{ county }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">
+            <button type="button" class="btn btn-outline" id="loc-cancel-btn" onclick="resetForm()" style="display:none;">Cancel Edit</button>
+            <button type="submit" class="btn btn-primary" id="loc-submit-btn">Add Location</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+  const FL_COUNTIES = {{ FL_COUNTIES|safe }};
+
+  function updateLocCounties(state) {
+    const sel = document.getElementById('loc-county');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— Select county —</option>';
+    if (state === 'FL') {
+      FL_COUNTIES.forEach(c => {
+        const o = document.createElement('option');
+        o.value = c; o.text = c;
+        if (c === cur) o.selected = true;
+        sel.appendChild(o);
+      });
+    }
+  }
+
+  function loadEditForm(id, label, address, city, state, county, zip) {
+    document.getElementById('loc-form-title').textContent = 'Edit Location';
+    document.getElementById('loc-id-field').value = id;
+    document.getElementById('loc-label').value = label;
+    document.getElementById('loc-address').value = address;
+    document.getElementById('loc-city').value = city;
+    document.getElementById('loc-zip').value = zip;
+    document.getElementById('loc-state').value = state;
+    updateLocCounties(state);
+    document.getElementById('loc-county').value = county;
+    document.getElementById('loc-cancel-btn').style.display = 'inline-block';
+    document.getElementById('loc-submit-btn').textContent = 'Save Changes';
+    document.getElementById('loc-form').scrollIntoView({behavior:'smooth', block:'start'});
+  }
+
+  function resetForm() {
+    document.getElementById('loc-form-title').textContent = 'Add Location';
+    document.getElementById('loc-id-field').value = '';
+    document.getElementById('loc-form').reset();
+    updateLocCounties('FL');
+    document.getElementById('loc-cancel-btn').style.display = 'none';
+    document.getElementById('loc-submit-btn').textContent = 'Add Location';
+  }
+</script>
+{% endblock %}

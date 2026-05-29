@@ -41,8 +41,11 @@ urlpatterns = [
     path('admin/demo/reload/', views.admin_demo_reload, name='admin_demo_reload'),
     path('admin/demo/reload-jobs/', views.admin_demo_reload_jobs, name='admin_demo_reload_jobs'),
 
-    # Customer
+    # Customer portal
     path('customer/', views.customer_dashboard, name='customer_dashboard'),
+    path('customer/request-test/', views.customer_request_test, name='customer_request_test'),
+    path('customer/edit-profile/', views.customer_edit_profile, name='customer_edit_profile'),
+    path('customer/locations/', views.customer_manage_locations, name='customer_manage_locations'),
 
     # Temporary seed endpoints
     path('seedusers/', views.seed_users, name='seed_users'),

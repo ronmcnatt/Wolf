@@ -1,19 +1,40 @@
 {% extends "technician/base.html" %}
 
-
 {% block content %}
 <div class="tech-page">
 
   <div class="tech-page-header">
     <div>
-      <h1>Welcome, {{ request.user.get_full_name|default:request.user.username }}</h1>
+      <h1>{% if customer_record %}{{ customer_record.business_name }}{% else %}{{ request.user.get_full_name|default:request.user.username }}{% endif %}</h1>
       <p>Your backflow testing history and upcoming service</p>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+      <a href="{% url 'customer_request_test' %}" class="btn btn-primary">+ Request a Test</a>
+      <a href="{% url 'customer_manage_locations' %}" class="btn btn-outline">📍 Manage Locations</a>
+      <a href="{% url 'customer_edit_profile' %}" class="btn btn-outline">✎ Edit Profile</a>
     </div>
   </div>
 
+  <!-- LOCATION FILTER (only if multiple locations exist) -->
+  {% if locations %}
+  <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
+    <span style="font-size:13px; color:var(--muted); font-weight:600;">Filter by location:</span>
+    <a href="{% url 'customer_dashboard' %}"
+       style="font-size:13px; padding:4px 12px; border-radius:20px; border:1px solid var(--border); background:{% if not location_filter %}var(--teal){% else %}white{% endif %}; color:{% if not location_filter %}white{% else %}var(--navy){% endif %}; text-decoration:none;">
+      All Locations
+    </a>
+    {% for loc in locations %}
+    <a href="{% url 'customer_dashboard' %}?location={{ loc.id }}"
+       style="font-size:13px; padding:4px 12px; border-radius:20px; border:1px solid var(--border); background:{% if location_filter.id == loc.id %}var(--teal){% else %}white{% endif %}; color:{% if location_filter.id == loc.id %}white{% else %}var(--navy){% endif %}; text-decoration:none;">
+      {{ loc.label }}
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   <!-- UPCOMING SERVICE -->
   <div class="card" style="margin-bottom:20px;">
-    <h3>Upcoming Service</h3>
+    <h3>Upcoming Service{% if location_filter %} — {{ location_filter.label }}{% endif %}</h3>
     {% if upcoming_jobs %}
       <div class="ops-table-wrap">
         <table class="ops-table">
@@ -21,19 +42,33 @@
             <tr>
               <th>Date</th>
               <th>Time</th>
+              <th>Location</th>
               <th>Address</th>
               <th>Device</th>
+              <th>Technician</th>
               <th>Status</th>
             </tr>
           </thead>
           <tbody>
             {% for job in upcoming_jobs %}
             <tr>
-              <td>{{ job.scheduled_date|date:"M j, Y" }}</td>
-              <td>{{ job.scheduled_time|time:"g:i A" }}</td>
-              <td>{{ job.address }}</td>
-              <td>{{ job.device_type }} {{ job.device_size }}</td>
-              <td><span class="badge status-{{ job.status }}">{{ job.get_status_display }}</span></td>
+              <td style="white-space:nowrap;">{{ job.scheduled_date|date:"M j, Y" }}</td>
+              <td style="white-space:nowrap;">{{ job.scheduled_time|time:"g:i A" }}</td>
+              <td>
+                {% if job.location_ref %}
+                  <span style="background:var(--teal);color:white;border-radius:4px;padding:2px 7px;font-size:11px;font-weight:600;">{{ job.location_ref.label }}</span>
+                {% else %}
+                  <span style="color:var(--muted);font-size:12px;">Primary</span>
+                {% endif %}
+              </td>
+              <td style="font-size:13px;">{{ job.address }}</td>
+              <td><span class="badge badge-device">{{ job.device_type }}{% if job.device_size %} · {{ job.device_size }}{% endif %}</span></td>
+              <td style="font-size:13px;">{{ job.assigned_to.get_full_name|default:"—" }}</td>
+              <td>
+                <span class="badge badge-{{ job.status }}">
+                  {% if job.status == 'in_progress' %}● Active{% else %}○ Pending{% endif %}
+                </span>
+              </td>
             </tr>
             {% endfor %}
           </tbody>
@@ -43,20 +78,23 @@
       <div class="empty-state">
         <div class="empty-icon">📅</div>
         <p>No upcoming service scheduled.</p>
-        <p style="font-size:13px; color:var(--muted);">Contact us at <a href="tel:+19045550100">(904) 555-0100</a> to schedule your next backflow test.</p>
+        <p style="font-size:13px; color:var(--muted);">
+          <a href="{% url 'customer_request_test' %}" style="color:var(--teal);">Request a test</a> or contact us at <a href="tel:+19045550100">(904) 555-0100</a>.
+        </p>
       </div>
     {% endif %}
   </div>
 
   <!-- SERVICE HISTORY -->
   <div class="card">
-    <h3>Service History</h3>
+    <h3>Service History{% if location_filter %} — {{ location_filter.label }}{% endif %}</h3>
     {% if all_jobs %}
       <div class="ops-table-wrap">
         <table class="ops-table">
           <thead>
             <tr>
               <th>Date</th>
+              <th>Location</th>
               <th>Address</th>
               <th>Device</th>
               <th>Technician</th>
@@ -69,10 +107,15 @@
             {% with result=job.test_results.all.0 %}
             <tr>
               <td style="white-space:nowrap;">{{ job.scheduled_date|date:"M j, Y" }}</td>
-              <td style="font-size:13px;">{{ job.address }}</td>
               <td>
-                <span class="badge badge-device">{{ job.device_type }}{% if job.device_size %} · {{ job.device_size }}{% endif %}</span>
+                {% if job.location_ref %}
+                  <span style="background:var(--teal);color:white;border-radius:4px;padding:2px 7px;font-size:11px;font-weight:600;">{{ job.location_ref.label }}</span>
+                {% else %}
+                  <span style="color:var(--muted);font-size:12px;">Primary</span>
+                {% endif %}
               </td>
+              <td style="font-size:13px;">{{ job.address }}</td>
+              <td><span class="badge badge-device">{{ job.device_type }}{% if job.device_size %} · {{ job.device_size }}{% endif %}</span></td>
               <td style="font-size:13px;">{{ job.assigned_to.get_full_name|default:"—" }}</td>
               <td>
                 <span class="badge badge-{{ job.status }}">
@@ -88,7 +131,7 @@
                     {{ result.overall_result|upper }}
                   </span>
                 {% else %}
-                  <span style="color:var(--muted); font-size:12px;">—</span>
+                  <span style="color:var(--muted);font-size:12px;">—</span>
                 {% endif %}
               </td>
             </tr>
