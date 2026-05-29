@@ -1821,57 +1821,62 @@ def _reprovision_demo_accounts():
     return provisioned, errors
 
 
-@role_required('admin')
-def admin_demo_reload(request):
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Method not allowed'}, status=405)
+def _run_demo_customer_reload():
+    """Delete and re-seed all demo=TRUE customers/locations from SQL files.
+
+    Restores job→customer FK links that ON DELETE SET NULL zeroed out.
+    Returns dict with customers/locations/jobs_relinked counts.
+    Raises on any error (caller wraps in try/except).
+    """
     import os
     from django.db import connection, transaction
 
-    sql_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'sql')
+    sql_dir   = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'sql')
     delete_sql = open(os.path.join(sql_dir, 'demo_customers_delete.sql')).read()
     seed_sql   = open(os.path.join(sql_dir, 'demo_customers_seed.sql')).read()
 
     is_postgres = 'postgresql' in connection.settings_dict.get('ENGINE', '')
 
-    def _exec_sql(sql_text):
-        statements = [s.strip() for s in sql_text.split(';') if s.strip() and not s.strip().startswith('--')]
-        for stmt in statements:
+    def _exec(sql_text):
+        for stmt in [s.strip() for s in sql_text.split(';') if s.strip() and not s.strip().startswith('--')]:
             if not is_postgres and stmt.upper().startswith('SELECT SETVAL'):
                 continue
             connection.cursor().execute(stmt)
 
-    try:
-        with transaction.atomic():
-            # Snapshot job→customer and job→location links before the delete
-            # NULLs them out via ON DELETE SET NULL.
-            job_links = list(
-                Job.objects.filter(customer_ref__demo=True)
-                .values('id', 'customer_ref_id', 'location_ref_id')
+    with transaction.atomic():
+        job_links = list(
+            Job.objects.filter(customer_ref__demo=True)
+            .values('id', 'customer_ref_id', 'location_ref_id')
+        )
+        _exec(delete_sql)
+        _exec(seed_sql)
+        for link in job_links:
+            Job.objects.filter(pk=link['id']).update(
+                customer_ref_id=link['customer_ref_id'],
+                location_ref_id=link['location_ref_id'],
             )
 
-            _exec_sql(delete_sql)   # customer_ref_id / location_ref_id on jobs → NULL
-            _exec_sql(seed_sql)     # customers + locations re-inserted with same IDs
+    return {
+        'customers':     Customer.objects.filter(demo=True).count(),
+        'locations':     CustomerLocation.objects.filter(customer__demo=True).count(),
+        'jobs_relinked': len(job_links),
+    }
 
-            # Restore the FK references now that the same IDs are back.
-            for link in job_links:
-                Job.objects.filter(pk=link['id']).update(
-                    customer_ref_id=link['customer_ref_id'],
-                    location_ref_id=link['location_ref_id'],
-                )
 
-        customers = Customer.objects.filter(demo=True).count()
-        locations = CustomerLocation.objects.filter(customer__demo=True).count()
-        jobs_relinked = len(job_links)
-
+@role_required('admin')
+def admin_demo_reload(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    try:
+        result = _run_demo_customer_reload()
         accounts_provisioned, acct_errors = _reprovision_demo_accounts()
         return JsonResponse({
             'ok': True,
-            'customers': customers,
-            'locations': locations,
-            'jobs_relinked': jobs_relinked,
+            'customers':          result['customers'],
+            'locations':          result['locations'],
+            'jobs_relinked':      result['jobs_relinked'],
             'accounts_provisioned': accounts_provisioned,
-            'account_errors': acct_errors,
+            'account_errors':     acct_errors,
         })
     except Exception as e:
         return JsonResponse({'ok': False, 'error': str(e)}, status=500)
@@ -1924,18 +1929,21 @@ def admin_demo_reload_jobs(request):
     # The seed JSON is the authoritative list of demo job IDs.
     seed_ids = [r['id'] for r in records]
 
-    # Preflight: ensure all referenced customer IDs exist before touching anything.
+    # Preflight: if any referenced customers are missing, reload them automatically.
     required_customer_ids = set(r['customer_ref_id'] for r in records if r['customer_ref_id'])
     existing_customer_ids = set(
         Customer.objects.filter(pk__in=required_customer_ids).values_list('pk', flat=True)
     )
     missing = sorted(required_customer_ids - existing_customer_ids)
+    auto_reloaded_customers = None
     if missing:
-        return JsonResponse({
-            'ok': False,
-            'error': f'Missing {len(missing)} demo customer(s) (e.g. ID {missing[0]}). '
-                     f'Run Reload Customers first, then retry Reload Jobs.',
-        }, status=400)
+        try:
+            auto_reloaded_customers = _run_demo_customer_reload()
+        except Exception as e:
+            return JsonResponse({
+                'ok': False,
+                'error': f'Missing {len(missing)} demo customer(s) and auto-reload failed: {e}',
+            }, status=500)
 
     try:
         with transaction.atomic():
@@ -2022,6 +2030,7 @@ def admin_demo_reload_jobs(request):
             'completed': completed_count,
             'pending': pending_count,
             'bdays': [str(d) for d in bdays],
+            'auto_reloaded_customers': auto_reloaded_customers,
         })
     except Exception as e:
         return JsonResponse({'ok': False, 'error': str(e)}, status=500)
