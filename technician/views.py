@@ -709,12 +709,17 @@ def ops_customer_form(request, customer_id=None):
                 try: return float(p[f]) if p.get(f) else None
                 except ValueError: return None
 
-            customer.lat        = _pflt('lat')
-            customer.lng        = _pflt('lng')
-            customer.device_lat = _pflt('device_lat')
-            customer.device_lng = _pflt('device_lng')
+            if 'lat' in p:
+                customer.lat = _pflt('lat')
+                customer.lng = _pflt('lng')
+            if 'device_lat' in p:
+                customer.device_lat = _pflt('device_lat')
+                customer.device_lng = _pflt('device_lng')
             customer.save()
-            _sync_primary_location(customer)
+            try:
+                _sync_primary_location(customer)
+            except Exception:
+                pass
             return redirect('/tech/ops/?tab=customers')
 
     job_history = []
@@ -771,12 +776,17 @@ def customer_save(request, customer_id=None):
         try: return float(data[key]) if data.get(key) is not None else None
         except (ValueError, TypeError): return None
 
-    customer.lat = _flt('lat')
-    customer.lng = _flt('lng')
-    customer.device_lat = _flt('device_lat')
-    customer.device_lng = _flt('device_lng')
+    if 'lat' in data:
+        customer.lat = _flt('lat')
+        customer.lng = _flt('lng')
+    if 'device_lat' in data:
+        customer.device_lat = _flt('device_lat')
+        customer.device_lng = _flt('device_lng')
     customer.save()
-    _sync_primary_location(customer)
+    try:
+        _sync_primary_location(customer)
+    except Exception:
+        pass
 
     locs = [{'id': l.id, 'label': l.label, 'address': l.address,
               'city': l.city, 'state': l.state, 'county': l.county,
