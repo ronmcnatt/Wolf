@@ -1751,12 +1751,74 @@ def admin_demo(request):
     location_count  = CustomerLocation.objects.filter(customer__demo=True).count()
     completed_jobs  = Job.objects.filter(customer_ref__demo=True, status='completed').count()
     pending_jobs    = Job.objects.filter(customer_ref__demo=True, status='pending').count()
+    account_count   = Customer.objects.filter(demo=True, linked_user__isnull=False).count()
     return render(request, 'technician/admin_demo.html', {
         'customer_count': customer_count,
         'location_count': location_count,
         'completed_jobs': completed_jobs,
         'pending_jobs':   pending_jobs,
+        'account_count':  account_count,
     })
+
+
+def _reprovision_demo_accounts():
+    """Find-or-create portal User accounts for all demo customers and reset passwords.
+
+    Called after a customer SQL reload where linked_user_id is NULL on re-inserted rows.
+    Returns (provisioned_count, errors).
+    """
+    import re as _re
+
+    used_emails = set()
+
+    def _gen_email(customer):
+        name = (customer.contact_name or customer.business_name or '').strip()
+        parts = name.lower().split()
+        if len(parts) >= 2:
+            base = parts[0][0] + _re.sub(r'[^a-z0-9]', '', parts[-1])
+        else:
+            base = _re.sub(r'[^a-z0-9]', '', ''.join(parts))[:20] or f'cust{customer.pk}'
+        slug = base
+        n = 2
+        while (f'{slug}@wolfbackflow.demo' in used_emails
+               or User.objects.filter(username=f'{slug}@wolfbackflow.demo').exists()):
+            slug = f'{base}{n}'
+            n += 1
+        email = f'{slug}@wolfbackflow.demo'
+        used_emails.add(email)
+        return email
+
+    provisioned, errors = 0, []
+    for customer in Customer.objects.filter(demo=True).order_by('id'):
+        try:
+            email = (customer.email or '').strip() or _gen_email(customer)
+            if not customer.email:
+                customer.email = email
+
+            password = customer.portal_password or 'test123'
+            if not customer.portal_password:
+                customer.portal_password = password
+
+            user = User.objects.filter(username=email).first()
+            if user:
+                user.set_password(password)
+                user.save(update_fields=['password'])
+            else:
+                parts = (customer.contact_name or '').split(None, 1)
+                user = User.objects.create_user(
+                    username=email,
+                    email=email,
+                    password=password,
+                    first_name=parts[0] if parts else '',
+                    last_name=parts[1] if len(parts) > 1 else '',
+                )
+            UserProfile.objects.get_or_create(user=user, defaults={'role': 'customer'})
+            customer.linked_user = user
+            customer.save(update_fields=['linked_user', 'email', 'portal_password'])
+            provisioned += 1
+        except Exception as e:
+            errors.append(f'{customer.business_name}: {e}')
+    return provisioned, errors
 
 
 @role_required('admin')
@@ -1801,11 +1863,31 @@ def admin_demo_reload(request):
         customers = Customer.objects.filter(demo=True).count()
         locations = CustomerLocation.objects.filter(customer__demo=True).count()
         jobs_relinked = len(job_links)
+
+        accounts_provisioned, acct_errors = _reprovision_demo_accounts()
         return JsonResponse({
             'ok': True,
             'customers': customers,
             'locations': locations,
             'jobs_relinked': jobs_relinked,
+            'accounts_provisioned': accounts_provisioned,
+            'account_errors': acct_errors,
+        })
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=500)
+
+
+@role_required('admin')
+def admin_demo_reload_accounts(request):
+    """Re-provision portal User accounts for all demo customers (reset passwords too)."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    try:
+        provisioned, errors = _reprovision_demo_accounts()
+        return JsonResponse({
+            'ok': True,
+            'accounts_provisioned': provisioned,
+            'errors': errors,
         })
     except Exception as e:
         return JsonResponse({'ok': False, 'error': str(e)}, status=500)
@@ -1819,9 +1901,8 @@ def admin_demo_reload_jobs(request):
     import os, json as _json
     from datetime import date, timedelta
     import random
-    from django.db import connection, transaction
 
-    sql_dir  = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'sql')
+    sql_dir   = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'sql')
     seed_path = os.path.join(sql_dir, 'demo_jobs_seed.json')
 
     records = _json.load(open(seed_path))
@@ -1839,18 +1920,21 @@ def admin_demo_reload_jobs(request):
 
     is_postgres = 'postgresql' in connection.settings_dict.get('ENGINE', '')
 
+    # The seed JSON is the authoritative list of demo job IDs.
+    seed_ids = [r['id'] for r in records]
+
     try:
         with transaction.atomic():
-            # Snapshot TestResult→job links before delete NULLs them.
+            # Snapshot TestResult→job links before the delete NULLs them.
+            # Use explicit seed IDs so we catch jobs regardless of their current
+            # customer_ref_id (a NULL link would be missed by the old SQL approach).
             tr_links = list(
-                TestResult.objects.filter(job__customer_ref__demo=True)
+                TestResult.objects.filter(job_id__in=seed_ids)
                 .values('id', 'job_id')
             )
 
-            # Delete existing demo jobs.
-            delete_sql = open(os.path.join(sql_dir, 'demo_jobs_delete.sql')).read()
-            for stmt in [s.strip() for s in delete_sql.split(';') if s.strip() and not s.strip().startswith('--')]:
-                connection.cursor().execute(stmt)
+            # Delete by explicit ID list — reliable even if customer_ref_id is NULL.
+            Job.objects.filter(pk__in=seed_ids).delete()
 
             # Re-insert jobs.
             completed_count = pending_count = 0

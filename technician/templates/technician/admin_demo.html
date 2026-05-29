@@ -44,7 +44,32 @@
 
       <div style="display:flex; align-items:center; gap:12px;">
         <button id="cust-btn" type="button" class="btn btn-primary" onclick="reloadCustomers()">⟳ Reload Customers</button>
-        <span style="font-size:12px; color:var(--muted);">SQL: demo_customers_delete.sql + demo_customers_seed.sql</span>
+        <span style="font-size:12px; color:var(--muted);">SQL: demo_customers_delete.sql + demo_customers_seed.sql (includes portal accounts)</span>
+      </div>
+    </div>
+
+    <!-- CUSTOMER ACCOUNTS CARD -->
+    <div class="card">
+      <h3>Customer Portal Accounts</h3>
+      <p style="font-size:13px; color:var(--muted); margin-bottom:20px;">
+        Creates or resets Django login accounts for all <code>demo=TRUE</code> customers.
+        Username = customer email (or <code>name@wolfbackflow.demo</code> for customers without one).
+        Password is reset to each customer's <code>portal_password</code> (default <code>test123</code>).
+        Run this after a customer reload, or standalone to fix broken logins.
+      </p>
+
+      <div style="display:flex; gap:16px; margin-bottom:20px; flex-wrap:wrap;">
+        <div style="background:#f0fafa; border:1px solid #b2e4e4; border-radius:8px; padding:14px 22px; text-align:center;">
+          <div style="font-size:28px; font-weight:700; color:var(--teal);">{{ account_count }}</div>
+          <div style="font-size:12px; color:var(--muted); margin-top:2px;">Accounts Linked</div>
+        </div>
+      </div>
+
+      <div id="acct-status" style="display:none; margin-bottom:14px; padding:12px 16px; border-radius:8px; font-size:13px; font-weight:500;"></div>
+
+      <div style="display:flex; align-items:center; gap:12px;">
+        <button id="acct-btn" type="button" class="btn btn-primary" onclick="reloadAccounts()">⟳ Reload Customer Accounts</button>
+        <span style="font-size:12px; color:var(--muted);">Resets passwords to portal_password / test123</span>
       </div>
     </div>
 
@@ -84,7 +109,7 @@
       <p style="font-size:13px; color:var(--muted); margin-bottom:10px;">Run manually against the database when needed.</p>
       <ul style="font-size:13px; line-height:2.2;">
         <li><code>sql/demo_customers_delete.sql</code> — removes all demo customers &amp; locations</li>
-        <li><code>sql/demo_customers_seed.sql</code> — re-inserts demo customers &amp; locations; resets sequences</li>
+        <li><code>sql/demo_customers_seed.sql</code> — re-inserts demo customers &amp; locations with <code>portal_password</code>; resets sequences</li>
         <li><code>sql/demo_jobs_delete.sql</code> — removes all jobs tied to demo customers</li>
         <li><code>sql/demo_jobs_seed.json</code> — job snapshot (completed exact; pending loaded with dynamic dates)</li>
       </ul>
@@ -115,7 +140,8 @@
       if (data.ok) {
         showStatus('cust-status', true,
           '✓ Reloaded — ' + data.customers + ' customers, ' + data.locations +
-          ' locations, ' + data.jobs_relinked + ' job links restored.');
+          ' locations, ' + data.jobs_relinked + ' job links restored, ' +
+          data.accounts_provisioned + ' portal accounts set.');
       } else {
         showStatus('cust-status', false, '✗ Error: ' + (data.error || 'Unknown error'));
       }
@@ -124,6 +150,30 @@
     .catch(err => {
       showStatus('cust-status', false, '✗ Request failed: ' + err);
       btn.disabled = false; btn.textContent = '⟳ Reload Customers';
+    });
+  }
+
+  function reloadAccounts() {
+    const btn = document.getElementById('acct-btn');
+    btn.disabled = true; btn.textContent = 'Reloading…';
+    fetch('{% url "admin_demo_reload_accounts" %}', {
+      method: 'POST',
+      headers: {'X-CSRFToken': '{{ csrf_token }}'},
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        const errs = data.errors && data.errors.length ? ' (' + data.errors.length + ' errors)' : '';
+        showStatus('acct-status', !errs,
+          '✓ ' + data.accounts_provisioned + ' portal accounts provisioned' + errs + '.');
+      } else {
+        showStatus('acct-status', false, '✗ Error: ' + (data.error || 'Unknown error'));
+      }
+      btn.disabled = false; btn.textContent = '⟳ Reload Customer Accounts';
+    })
+    .catch(err => {
+      showStatus('acct-status', false, '✗ Request failed: ' + err);
+      btn.disabled = false; btn.textContent = '⟳ Reload Customer Accounts';
     });
   }
 

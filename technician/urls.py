@@ -40,6 +40,7 @@ urlpatterns = [
     path('admin/demo/', views.admin_demo, name='admin_demo'),
     path('admin/demo/reload/', views.admin_demo_reload, name='admin_demo_reload'),
     path('admin/demo/reload-jobs/', views.admin_demo_reload_jobs, name='admin_demo_reload_jobs'),
+    path('admin/demo/reload-accounts/', views.admin_demo_reload_accounts, name='admin_demo_reload_accounts'),
 
     # Customer portal
     path('customer/', views.customer_dashboard, name='customer_dashboard'),
