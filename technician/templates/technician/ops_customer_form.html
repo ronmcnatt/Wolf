@@ -29,7 +29,7 @@
       <div style="background:#fee2e2;color:#b91c1c;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;">{{ error }}</div>
       {% endif %}
 
-      <form method="POST">
+      <form method="POST" id="customer-main-form">
         {% csrf_token %}
         <div class="card" style="margin-bottom:16px;">
           <h3>Business Information</h3>
@@ -50,11 +50,15 @@
               <label>Email</label>
               <input type="email" name="email" value="{{ customer.email|default:'' }}" placeholder="contact@business.com">
             </div>
+            <div class="form-group span-2">
+              <label>Website</label>
+              <input type="url" name="website" value="{{ customer.website|default:'' }}" placeholder="https://www.business.com">
+            </div>
           </div>
         </div>
 
         <div class="card" style="margin-bottom:16px;">
-          <h3>Address</h3>
+          <h3>Billing Address</h3>
           <div class="form-grid" style="grid-template-columns:1fr 1fr;">
             <div class="form-group span-2">
               <label>Street Address</label>
@@ -70,7 +74,7 @@
             </div>
             <div class="form-group">
               <label>State</label>
-              <select name="state" id="state-sel" onchange="updateCounties(this.value)">
+              <select name="state" id="billing-state-sel" onchange="updateCounties('billing', this.value)">
                 {% for code, name in US_STATES %}
                 <option value="{{ code }}" {% if customer.state == code or not customer and code == 'FL' %}selected{% endif %}>{{ name }}</option>
                 {% endfor %}
@@ -78,7 +82,7 @@
             </div>
             <div class="form-group">
               <label>County</label>
-              <select name="county" id="county-sel" data-current="{{ customer.county|default:'' }}">
+              <select name="county" id="billing-county-sel" data-current="{{ customer.county|default:'' }}">
                 <option value="">— Select county —</option>
                 {% for county in FL_COUNTIES %}
                 <option value="{{ county }}" {% if customer.county == county %}selected{% endif %}>{{ county }}</option>
@@ -95,35 +99,120 @@
           </div>
         </div>
 
-        <div class="card" style="margin-bottom:20px;">
-          <h3>Location Maps</h3>
-          <p style="font-size:12px; color:var(--muted); margin-bottom:16px;">
-            Drag the markers to set property and device coordinates. These pre-fill maps when scheduling a job for this customer.
-          </p>
-          <div class="map-block" style="margin-bottom:16px;">
-            <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
-              <h4 style="margin:0;">Property Location</h4>
-              <button type="button" class="btn btn-outline btn-sm" id="locate-btn" onclick="locateAddress()">📍 Locate Address</button>
-              <span id="locate-status" style="font-size:12px; color:var(--muted);"></span>
-            </div>
-            <div class="map-container" id="property-map" style="height:220px;"></div>
-            <input type="hidden" name="lat" id="c-lat" value="{{ customer.lat|default:'' }}">
-            <input type="hidden" name="lng" id="c-lng" value="{{ customer.lng|default:'' }}">
-          </div>
-          <div class="map-block">
-            <h4>Backflow Device Location</h4>
-            <div class="map-container" id="device-map" style="height:220px;"></div>
-            <input type="hidden" name="device_lat" id="c-device-lat" value="{{ customer.device_lat|default:'' }}">
-            <input type="hidden" name="device_lng" id="c-device-lng" value="{{ customer.device_lng|default:'' }}">
-            <p style="font-size:11px; color:var(--muted); margin-top:8px;">Click the map to place the device marker.</p>
-          </div>
-        </div>
-
-        <div style="display:flex; gap:12px; justify-content:flex-end;">
+        <div style="display:flex; gap:12px; justify-content:flex-end; margin-bottom:20px;">
           <a href="/tech/ops/?tab=customers" class="btn btn-outline">Cancel</a>
           <button type="submit" class="btn btn-primary">{% if customer %}Save Changes{% else %}Create Customer{% endif %}</button>
         </div>
       </form>
+
+      {% if customer %}
+      <!-- SERVICE LOCATIONS -->
+      <div class="card" style="margin-bottom:20px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+          <h3 style="margin:0;">Service Locations</h3>
+          <button type="button" class="btn btn-outline btn-sm" onclick="openLocationModal(null)">+ Add Location</button>
+        </div>
+        <p style="font-size:12px; color:var(--muted); margin-bottom:16px;">
+          Service locations are individual properties where backflow devices are installed. Each location has its own address and device coordinates for scheduling.
+        </p>
+
+        <div id="locations-list">
+          {% for loc in locations %}
+          <div class="location-card" id="loc-{{ loc.id }}" style="border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;position:relative;">
+            <div style="display:flex; align-items:flex-start; justify-content:space-between;">
+              <div>
+                <div style="font-weight:600; font-size:14px; margin-bottom:4px;">
+                  <span style="background:var(--teal);color:white;border-radius:4px;padding:2px 8px;font-size:11px;margin-right:8px;">{{ loc.label }}</span>
+                </div>
+                <div style="font-size:13px; color:var(--text);">{{ loc.address }}{% if loc.city %}, {{ loc.city }}{% endif %}{% if loc.state %}, {{ loc.state }}{% endif %}{% if loc.zip_code %} {{ loc.zip_code }}{% endif %}</div>
+                {% if loc.county %}<div style="font-size:12px; color:var(--muted);">{{ loc.county }} County</div>{% endif %}
+                {% if loc.lat and loc.lng %}
+                <div style="font-size:11px; color:var(--muted); margin-top:4px;">📍 {{ loc.lat|floatformat:4 }}, {{ loc.lng|floatformat:4 }}</div>
+                {% endif %}
+              </div>
+              <div style="display:flex; gap:6px; flex-shrink:0; margin-left:12px;">
+                <button type="button" class="btn btn-outline btn-sm" onclick="openLocationModal({{ loc.id }})">Edit</button>
+                <button type="button" class="btn btn-sm" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;" onclick="deleteLocation({{ loc.id }})">Delete</button>
+              </div>
+            </div>
+          </div>
+          {% empty %}
+          <div id="no-locations-msg" style="text-align:center; padding:24px 0; color:var(--muted);">
+            <div style="font-size:28px; margin-bottom:8px;">📍</div>
+            <p style="font-size:13px;">No service locations added yet.</p>
+            <p style="font-size:12px;">Add locations for each property where backflow devices are installed.</p>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- PRIMARY LOCATION MAPS (for backward compat — show if no service locations) -->
+      <div class="card" id="primary-maps-card" style="margin-bottom:20px; {% if locations %}display:none;{% endif %}">
+        <h3>Primary Location Maps</h3>
+        <p style="font-size:12px; color:var(--muted); margin-bottom:16px;">
+          Drag markers to set property and device coordinates. Use "Add Location" above to add named service locations with their own maps.
+        </p>
+        <form method="POST" id="primary-maps-form">
+          {% csrf_token %}
+          <input type="hidden" name="business_name" value="{{ customer.business_name }}">
+          <input type="hidden" name="contact_name" value="{{ customer.contact_name }}">
+          <input type="hidden" name="phone" value="{{ customer.phone }}">
+          <input type="hidden" name="email" value="{{ customer.email }}">
+          <input type="hidden" name="website" value="{{ customer.website }}">
+          <input type="hidden" name="address" value="{{ customer.address }}">
+          <input type="hidden" name="city" value="{{ customer.city }}">
+          <input type="hidden" name="state" value="{{ customer.state }}">
+          <input type="hidden" name="county" value="{{ customer.county }}">
+          <input type="hidden" name="zip_code" value="{{ customer.zip_code }}">
+          <input type="hidden" name="notes" value="{{ customer.notes }}">
+          <div class="map-block" style="margin-bottom:16px;">
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+              <h4 style="margin:0;">Property Location</h4>
+              <button type="button" class="btn btn-outline btn-sm" id="locate-btn-primary" onclick="locateAddress('primary')">📍 Locate Address</button>
+              <span id="locate-status-primary" style="font-size:12px; color:var(--muted);"></span>
+            </div>
+            <div class="map-container" id="property-map" style="height:200px;"></div>
+            <input type="hidden" name="lat" id="c-lat" value="{{ customer.lat|default:'' }}">
+            <input type="hidden" name="lng" id="c-lng" value="{{ customer.lng|default:'' }}">
+          </div>
+          <div class="map-block" style="margin-bottom:16px;">
+            <h4>Backflow Device Location</h4>
+            <div class="map-container" id="device-map" style="height:200px;"></div>
+            <input type="hidden" name="device_lat" id="c-device-lat" value="{{ customer.device_lat|default:'' }}">
+            <input type="hidden" name="device_lng" id="c-device-lng" value="{{ customer.device_lng|default:'' }}">
+            <p style="font-size:11px; color:var(--muted); margin-top:8px;">Click the map to place the device marker.</p>
+          </div>
+          <div style="display:flex; justify-content:flex-end;">
+            <button type="submit" class="btn btn-outline btn-sm">Save Coordinates</button>
+          </div>
+        </form>
+      </div>
+      {% else %}
+      <!-- NEW CUSTOMER: show maps inline with form -->
+      <div class="card" style="margin-bottom:20px;">
+        <h3>Location Maps</h3>
+        <p style="font-size:12px; color:var(--muted); margin-bottom:16px;">
+          Drag the markers to set property and device coordinates. These pre-fill maps when scheduling a job for this customer.
+        </p>
+        <div class="map-block" style="margin-bottom:16px;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+            <h4 style="margin:0;">Property Location</h4>
+            <button type="button" class="btn btn-outline btn-sm" id="locate-btn" onclick="locateAddress('main')">📍 Locate Address</button>
+            <span id="locate-status-main" style="font-size:12px; color:var(--muted);"></span>
+          </div>
+          <div class="map-container" id="property-map" style="height:220px;"></div>
+          <input type="hidden" name="lat" id="c-lat" form="customer-main-form" value="{{ customer.lat|default:'' }}">
+          <input type="hidden" name="lng" id="c-lng" form="customer-main-form" value="{{ customer.lng|default:'' }}">
+        </div>
+        <div class="map-block">
+          <h4>Backflow Device Location</h4>
+          <div class="map-container" id="device-map" style="height:220px;"></div>
+          <input type="hidden" name="device_lat" id="c-device-lat" form="customer-main-form" value="{{ customer.device_lat|default:'' }}">
+          <input type="hidden" name="device_lng" id="c-device-lng" form="customer-main-form" value="{{ customer.device_lng|default:'' }}">
+          <p style="font-size:11px; color:var(--muted); margin-top:8px;">Click the map to place the device marker.</p>
+        </div>
+      </div>
+      {% endif %}
     </div>
 
     {% if customer %}
@@ -194,11 +283,86 @@
   </div>
 </div>
 
+<!-- LOCATION MODAL -->
+<div class="modal-overlay" id="location-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+  <div style="background:white; border-radius:12px; padding:24px; width:680px; max-width:95vw; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+      <h3 id="loc-modal-title" style="margin:0;">Add Service Location</h3>
+      <button type="button" onclick="closeLocationModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">✕</button>
+    </div>
+
+    <div class="form-grid" style="grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+      <div class="form-group span-2">
+        <label>Location Label <span style="color:var(--danger)">*</span></label>
+        <input type="text" id="loc-label" placeholder="e.g. Main Office, Building A, Pool Equipment Room">
+      </div>
+      <div class="form-group span-2">
+        <label>Street Address</label>
+        <input type="text" id="loc-address" placeholder="123 Main St">
+      </div>
+      <div class="form-group">
+        <label>City</label>
+        <input type="text" id="loc-city" placeholder="Jacksonville">
+      </div>
+      <div class="form-group">
+        <label>Zip Code</label>
+        <input type="text" id="loc-zip" placeholder="32204">
+      </div>
+      <div class="form-group">
+        <label>State</label>
+        <select id="loc-state" onchange="updateCounties('loc', this.value)">
+          {% for code, name in US_STATES %}
+          <option value="{{ code }}" {% if code == 'FL' %}selected{% endif %}>{{ name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>County</label>
+        <select id="loc-county">
+          <option value="">— Select county —</option>
+          {% for county in FL_COUNTIES %}
+          <option value="{{ county }}">{{ county }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <!-- Location maps -->
+    <div style="margin-bottom:16px;">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+        <h4 style="margin:0; font-size:13px;">Property Location</h4>
+        <button type="button" class="btn btn-outline btn-sm" onclick="locateAddress('loc')">📍 Locate</button>
+        <span id="locate-status-loc" style="font-size:12px; color:var(--muted);"></span>
+      </div>
+      <div id="loc-prop-map" style="height:180px; border-radius:8px; border:1px solid var(--border); margin-bottom:4px;"></div>
+      <input type="hidden" id="loc-lat" value="">
+      <input type="hidden" id="loc-lng" value="">
+    </div>
+    <div style="margin-bottom:20px;">
+      <h4 style="margin:0 0 6px; font-size:13px;">Device Location</h4>
+      <div id="loc-dev-map" style="height:180px; border-radius:8px; border:1px solid var(--border); margin-bottom:4px;"></div>
+      <input type="hidden" id="loc-device-lat" value="">
+      <input type="hidden" id="loc-device-lng" value="">
+      <p style="font-size:11px; color:var(--muted); margin-top:4px;">Click map to place device marker.</p>
+    </div>
+
+    <div id="loc-error" style="display:none; background:#fee2e2;color:#b91c1c;padding:10px 14px;border-radius:6px;font-size:13px;margin-bottom:12px;"></div>
+
+    <div style="display:flex; gap:10px; justify-content:flex-end;">
+      <button type="button" class="btn btn-outline" onclick="closeLocationModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" onclick="saveLocation()">Save Location</button>
+    </div>
+  </div>
+</div>
+
 <script>
   const FL_COUNTIES = {{ FL_COUNTIES|safe }};
-  function updateCounties(state) {
-    const sel = document.getElementById('county-sel');
-    const cur = sel.dataset.current || sel.value;
+  const CUSTOMER_ID = {% if customer %}{{ customer.id }}{% else %}null{% endif %};
+
+  // ── County dropdowns ─────────────────────────────────────────────────────────
+  function updateCounties(prefix, state) {
+    const sel = document.getElementById(prefix === 'billing' ? 'billing-county-sel' : 'loc-county');
+    const cur = sel.dataset ? (sel.dataset.current || sel.value) : sel.value;
     sel.innerHTML = '<option value="">— Select county —</option>';
     if (state === 'FL') {
       FL_COUNTIES.forEach(c => {
@@ -210,6 +374,12 @@
     }
   }
 
+  // ── Primary billing address county init ─────────────────────────────────────
+  (function() {
+    const stateEl = document.getElementById('billing-state-sel');
+    if (stateEl && stateEl.value !== 'FL') updateCounties('billing', stateEl.value);
+  })();
+
   // ── Maps ────────────────────────────────────────────────────────────────────
   const C_LAT = parseFloat('{{ customer.lat|default:"30.3322" }}') || 30.3322;
   const C_LNG = parseFloat('{{ customer.lng|default:"-81.6557" }}') || -81.6557;
@@ -220,61 +390,295 @@
     attribution: '© OpenStreetMap contributors', maxZoom: 20
   });
 
-  const propMap = L.map('property-map').setView([C_LAT, C_LNG], 15);
-  tiles().addTo(propMap);
-  let propMarker = L.marker([C_LAT, C_LNG], { draggable: true }).addTo(propMap);
-  propMarker.on('dragend', e => {
-    document.getElementById('c-lat').value = e.target.getLatLng().lat.toFixed(6);
-    document.getElementById('c-lng').value = e.target.getLatLng().lng.toFixed(6);
-  });
+  {% if not customer or not locations %}
+  // Primary maps (new customer or existing with no service locations)
+  const propMapEl = document.getElementById('property-map');
+  if (propMapEl) {
+    const propMap = L.map('property-map').setView([C_LAT, C_LNG], 15);
+    tiles().addTo(propMap);
+    let propMarker = L.marker([C_LAT, C_LNG], { draggable: true }).addTo(propMap);
+    propMarker.on('dragend', e => {
+      document.getElementById('c-lat').value = e.target.getLatLng().lat.toFixed(6);
+      document.getElementById('c-lng').value = e.target.getLatLng().lng.toFixed(6);
+    });
 
-  const devIcon = L.divIcon({
-    className: '',
-    html: '<div style="background:#00A8A8;color:white;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.3)">🔧 Device</div>',
-    iconAnchor: [36, 24]
-  });
-  const devMap = L.map('device-map').setView([C_DLAT, C_DLNG], 18);
-  tiles().addTo(devMap);
-  let devMarker = L.marker([C_DLAT, C_DLNG], { icon: devIcon, draggable: true }).addTo(devMap);
-  devMarker.on('dragend', e => {
-    document.getElementById('c-device-lat').value = e.target.getLatLng().lat.toFixed(6);
-    document.getElementById('c-device-lng').value = e.target.getLatLng().lng.toFixed(6);
-  });
-  devMap.on('click', e => {
-    devMarker.setLatLng(e.latlng);
-    document.getElementById('c-device-lat').value = e.latlng.lat.toFixed(6);
-    document.getElementById('c-device-lng').value = e.latlng.lng.toFixed(6);
-  });
+    const devIcon = L.divIcon({
+      className: '',
+      html: '<div style="background:#00A8A8;color:white;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.3)">🔧 Device</div>',
+      iconAnchor: [36, 24]
+    });
+    const devMap = L.map('device-map').setView([C_DLAT, C_DLNG], 18);
+    tiles().addTo(devMap);
+    let devMarker = L.marker([C_DLAT, C_DLNG], { icon: devIcon, draggable: true }).addTo(devMap);
+    devMarker.on('dragend', e => {
+      document.getElementById('c-device-lat').value = e.target.getLatLng().lat.toFixed(6);
+      document.getElementById('c-device-lng').value = e.target.getLatLng().lng.toFixed(6);
+    });
+    devMap.on('click', e => {
+      devMarker.setLatLng(e.latlng);
+      document.getElementById('c-device-lat').value = e.latlng.lat.toFixed(6);
+      document.getElementById('c-device-lng').value = e.latlng.lng.toFixed(6);
+    });
 
-  function locateAddress() {
-    const addr  = document.getElementById('id_address') ? document.getElementById('id_address').value
-                : document.querySelector('[name="address"]').value;
-    const city  = document.querySelector('[name="city"]').value;
-    const state = document.querySelector('[name="state"]').value || 'FL';
-    if (!addr) { document.getElementById('locate-status').textContent = 'Enter an address first.'; return; }
-    const btn = document.getElementById('locate-btn');
-    const status = document.getElementById('locate-status');
-    btn.disabled = true;
-    status.textContent = 'Searching…';
+    window._primaryPropMap = propMap;
+    window._primaryPropMarker = propMarker;
+  }
+  {% endif %}
+
+  // ── Locate address helper ────────────────────────────────────────────────────
+  function locateAddress(scope) {
+    let addr, city, state, statusEl, latEl, lngEl, theMap, theMarker;
+    if (scope === 'loc') {
+      addr  = document.getElementById('loc-address').value;
+      city  = document.getElementById('loc-city').value;
+      state = document.getElementById('loc-state').value || 'FL';
+      statusEl = document.getElementById('locate-status-loc');
+      latEl  = document.getElementById('loc-lat');
+      lngEl  = document.getElementById('loc-lng');
+      theMap = window._locPropMap;
+      theMarker = window._locPropMarker;
+    } else {
+      addr  = document.querySelector('[name="address"]').value;
+      city  = document.querySelector('[name="city"]').value;
+      state = document.querySelector('[name="state"]').value || 'FL';
+      statusEl = document.getElementById('locate-status-' + scope) || document.getElementById('locate-status-main');
+      latEl  = document.getElementById('c-lat');
+      lngEl  = document.getElementById('c-lng');
+      theMap = window._primaryPropMap;
+      theMarker = window._primaryPropMarker;
+    }
+    if (!addr) { statusEl.textContent = 'Enter an address first.'; return; }
+    statusEl.textContent = 'Searching…';
     const q = [addr, city, state].filter(Boolean).join(', ');
     fetch('https://nominatim.openstreetmap.org/search?' + new URLSearchParams({q, format:'json', limit:1}), {
       headers: {'User-Agent': 'WolfBackflow/1.0'}
     })
     .then(r => r.json())
     .then(data => {
-      btn.disabled = false;
-      if (!data.length) { status.textContent = 'Address not found — drag the pin manually.'; return; }
+      if (!data.length) { statusEl.textContent = 'Not found — drag pin manually.'; return; }
       const lat = parseFloat(data[0].lat), lng = parseFloat(data[0].lon);
-      propMarker.setLatLng([lat, lng]);
-      propMap.setView([lat, lng], 17);
-      document.getElementById('c-lat').value = lat.toFixed(6);
-      document.getElementById('c-lng').value = lng.toFixed(6);
-      status.textContent = '✓ Found — drag pin to refine if needed.';
+      if (theMarker) theMarker.setLatLng([lat, lng]);
+      if (theMap) theMap.setView([lat, lng], 17);
+      latEl.value = lat.toFixed(6);
+      lngEl.value = lng.toFixed(6);
+      statusEl.textContent = '✓ Found — drag pin to refine.';
     })
-    .catch(() => {
-      btn.disabled = false;
-      status.textContent = 'Lookup failed — drag the pin manually.';
+    .catch(() => { statusEl.textContent = 'Lookup failed — drag pin manually.'; });
+  }
+
+  // ── Location modal ───────────────────────────────────────────────────────────
+  let _editingLocId = null;
+  let _locPropMap = null, _locPropMarker = null, _locDevMap = null, _locDevMarker = null;
+
+  function openLocationModal(locId) {
+    _editingLocId = locId;
+    document.getElementById('loc-modal-title').textContent = locId ? 'Edit Service Location' : 'Add Service Location';
+    document.getElementById('loc-error').style.display = 'none';
+
+    // Reset fields
+    document.getElementById('loc-label').value = '';
+    document.getElementById('loc-address').value = '';
+    document.getElementById('loc-city').value = '';
+    document.getElementById('loc-zip').value = '';
+    document.getElementById('loc-state').value = 'FL';
+    updateCounties('loc', 'FL');
+    document.getElementById('loc-county').value = '';
+    document.getElementById('loc-lat').value = '';
+    document.getElementById('loc-lng').value = '';
+    document.getElementById('loc-device-lat').value = '';
+    document.getElementById('loc-device-lng').value = '';
+
+    const modal = document.getElementById('location-modal');
+    modal.style.display = 'flex';
+
+    // Init maps after modal is visible
+    setTimeout(() => {
+      const cLat = 30.3322, cLng = -81.6557;
+      if (!_locPropMap) {
+        _locPropMap = L.map('loc-prop-map').setView([cLat, cLng], 13);
+        tiles().addTo(_locPropMap);
+        _locPropMarker = L.marker([cLat, cLng], {draggable: true}).addTo(_locPropMap);
+        _locPropMarker.on('dragend', e => {
+          document.getElementById('loc-lat').value = e.target.getLatLng().lat.toFixed(6);
+          document.getElementById('loc-lng').value = e.target.getLatLng().lng.toFixed(6);
+        });
+        window._locPropMap = _locPropMap;
+        window._locPropMarker = _locPropMarker;
+
+        const devIcon = L.divIcon({
+          className: '',
+          html: '<div style="background:#00A8A8;color:white;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:700;">🔧 Device</div>',
+          iconAnchor: [36, 24]
+        });
+        _locDevMap = L.map('loc-dev-map').setView([cLat, cLng], 15);
+        tiles().addTo(_locDevMap);
+        _locDevMarker = L.marker([cLat, cLng], {icon: devIcon, draggable: true}).addTo(_locDevMap);
+        _locDevMarker.on('dragend', e => {
+          document.getElementById('loc-device-lat').value = e.target.getLatLng().lat.toFixed(6);
+          document.getElementById('loc-device-lng').value = e.target.getLatLng().lng.toFixed(6);
+        });
+        _locDevMap.on('click', e => {
+          _locDevMarker.setLatLng(e.latlng);
+          document.getElementById('loc-device-lat').value = e.latlng.lat.toFixed(6);
+          document.getElementById('loc-device-lng').value = e.latlng.lng.toFixed(6);
+        });
+      } else {
+        _locPropMap.invalidateSize();
+        _locDevMap.invalidateSize();
+      }
+
+      // If editing, fetch existing data from DOM or reload
+      if (locId) {
+        // Find data from existing card
+        // We'll fetch by calling a quick GET approach using LOCATIONS_DATA
+        const existing = LOCATIONS_DATA.find(l => l.id === locId);
+        if (existing) {
+          document.getElementById('loc-label').value = existing.label || '';
+          document.getElementById('loc-address').value = existing.address || '';
+          document.getElementById('loc-city').value = existing.city || '';
+          document.getElementById('loc-zip').value = existing.zip_code || '';
+          document.getElementById('loc-state').value = existing.state || 'FL';
+          updateCounties('loc', existing.state || 'FL');
+          setTimeout(() => {
+            document.getElementById('loc-county').value = existing.county || '';
+          }, 50);
+          const lat = existing.lat || cLat, lng = existing.lng || cLng;
+          const dlat = existing.device_lat || cLat, dlng = existing.device_lng || cLng;
+          document.getElementById('loc-lat').value = existing.lat || '';
+          document.getElementById('loc-lng').value = existing.lng || '';
+          document.getElementById('loc-device-lat').value = existing.device_lat || '';
+          document.getElementById('loc-device-lng').value = existing.device_lng || '';
+          _locPropMarker.setLatLng([lat, lng]);
+          _locPropMap.setView([lat, lng], 16);
+          _locDevMarker.setLatLng([dlat, dlng]);
+          _locDevMap.setView([dlat, dlng], 17);
+        }
+      }
+    }, 100);
+  }
+
+  function closeLocationModal() {
+    document.getElementById('location-modal').style.display = 'none';
+  }
+
+  function saveLocation() {
+    const label = document.getElementById('loc-label').value.trim();
+    if (!label) {
+      showLocError('Location label is required.');
+      return;
+    }
+    const payload = {
+      label,
+      address: document.getElementById('loc-address').value.trim(),
+      city: document.getElementById('loc-city').value.trim(),
+      state: document.getElementById('loc-state').value,
+      county: document.getElementById('loc-county').value,
+      zip_code: document.getElementById('loc-zip').value.trim(),
+      lat: document.getElementById('loc-lat').value || null,
+      lng: document.getElementById('loc-lng').value || null,
+      device_lat: document.getElementById('loc-device-lat').value || null,
+      device_lng: document.getElementById('loc-device-lng').value || null,
+    };
+    const url = _editingLocId
+      ? `/tech/ops/customers/${CUSTOMER_ID}/locations/${_editingLocId}/save/`
+      : `/tech/ops/customers/${CUSTOMER_ID}/locations/save/`;
+
+    fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrf()},
+      body: JSON.stringify(payload),
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { showLocError(data.error); return; }
+      closeLocationModal();
+      // Update local data and re-render card
+      const loc = data.location;
+      const idx = LOCATIONS_DATA.findIndex(l => l.id === loc.id);
+      if (idx >= 0) LOCATIONS_DATA[idx] = loc; else LOCATIONS_DATA.push(loc);
+      renderLocationCard(loc, _editingLocId === null);
+      document.getElementById('no-locations-msg') && (document.getElementById('no-locations-msg').style.display = 'none');
+      // Hide primary maps card now that we have locations
+      const pmc = document.getElementById('primary-maps-card');
+      if (pmc) pmc.style.display = 'none';
+    })
+    .catch(() => showLocError('Save failed — please try again.'));
+  }
+
+  function deleteLocation(locId) {
+    if (!confirm('Delete this service location?')) return;
+    fetch(`/tech/ops/locations/${locId}/delete/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCsrf()},
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) return;
+      const card = document.getElementById('loc-' + locId);
+      if (card) card.remove();
+      LOCATIONS_DATA = LOCATIONS_DATA.filter(l => l.id !== locId);
+      if (LOCATIONS_DATA.length === 0) {
+        const noMsg = document.getElementById('no-locations-msg');
+        if (noMsg) noMsg.style.display = '';
+        const pmc = document.getElementById('primary-maps-card');
+        if (pmc) pmc.style.display = '';
+      }
     });
   }
+
+  function renderLocationCard(loc, isNew) {
+    const addr = [loc.address, loc.city, loc.state, loc.zip_code].filter(Boolean).join(', ');
+    const coords = (loc.lat && loc.lng) ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">📍 ${parseFloat(loc.lat).toFixed(4)}, ${parseFloat(loc.lng).toFixed(4)}</div>` : '';
+    const county = loc.county ? `<div style="font-size:12px;color:var(--muted);">${loc.county} County</div>` : '';
+    const html = `
+      <div class="location-card" id="loc-${loc.id}" style="border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+          <div>
+            <div style="font-weight:600;font-size:14px;margin-bottom:4px;">
+              <span style="background:var(--teal);color:white;border-radius:4px;padding:2px 8px;font-size:11px;margin-right:8px;">${loc.label}</span>
+            </div>
+            <div style="font-size:13px;color:var(--text);">${addr}</div>
+            ${county}${coords}
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0;margin-left:12px;">
+            <button type="button" class="btn btn-outline btn-sm" onclick="openLocationModal(${loc.id})">Edit</button>
+            <button type="button" class="btn btn-sm" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;" onclick="deleteLocation(${loc.id})">Delete</button>
+          </div>
+        </div>
+      </div>`;
+    if (isNew) {
+      document.getElementById('locations-list').insertAdjacentHTML('beforeend', html);
+    } else {
+      const existing = document.getElementById('loc-' + loc.id);
+      if (existing) existing.outerHTML = html;
+    }
+  }
+
+  function showLocError(msg) {
+    const el = document.getElementById('loc-error');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  function getCsrf() {
+    const el = document.querySelector('[name=csrfmiddlewaretoken]');
+    return el ? el.value : '';
+  }
+
+  // Seed initial LOCATIONS_DATA from server-rendered locations
+  let LOCATIONS_DATA = [
+    {% for loc in locations %}
+    {id: {{ loc.id }}, label: "{{ loc.label|escapejs }}", address: "{{ loc.address|escapejs }}",
+     city: "{{ loc.city|escapejs }}", state: "{{ loc.state|escapejs }}", county: "{{ loc.county|escapejs }}",
+     zip_code: "{{ loc.zip_code|escapejs }}",
+     lat: {{ loc.lat|default:"null" }}, lng: {{ loc.lng|default:"null" }},
+     device_lat: {{ loc.device_lat|default:"null" }}, device_lng: {{ loc.device_lng|default:"null" }}},
+    {% endfor %}
+  ];
+
+  // Close modal on overlay click
+  document.getElementById('location-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeLocationModal();
+  });
 </script>
 {% endblock %}

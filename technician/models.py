@@ -26,6 +26,7 @@ class Customer(models.Model):
     contact_name = models.CharField(max_length=100, blank=True)
     phone = models.CharField(max_length=20, blank=True)
     email = models.EmailField(blank=True)
+    website = models.URLField(max_length=300, blank=True)
     address = models.CharField(max_length=300, blank=True)
     city = models.CharField(max_length=100, blank=True)
     state = models.CharField(max_length=2, default='FL')
@@ -44,6 +45,26 @@ class Customer(models.Model):
 
     def __str__(self):
         return self.business_name
+
+
+class CustomerLocation(models.Model):
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='locations')
+    label = models.CharField(max_length=100, default='Main')
+    address = models.CharField(max_length=300, blank=True)
+    city = models.CharField(max_length=100, blank=True)
+    state = models.CharField(max_length=2, default='FL')
+    county = models.CharField(max_length=100, blank=True)
+    zip_code = models.CharField(max_length=10, blank=True)
+    lat = models.FloatField(null=True, blank=True)
+    lng = models.FloatField(null=True, blank=True)
+    device_lat = models.FloatField(null=True, blank=True)
+    device_lng = models.FloatField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['label']
+
+    def __str__(self):
+        return f"{self.customer.business_name} — {self.label}"
 
 
 class Job(models.Model):

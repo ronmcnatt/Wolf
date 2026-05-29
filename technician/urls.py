@@ -19,6 +19,9 @@ urlpatterns = [
     path('ops/customers/<int:customer_id>/save/', views.customer_save, name='customer_save_edit'),
     path('ops/customers/new/', views.ops_customer_form, name='ops_customer_new'),
     path('ops/customers/<int:customer_id>/edit/', views.ops_customer_form, name='ops_customer_edit'),
+    path('ops/customers/<int:customer_id>/locations/save/', views.location_save, name='location_save'),
+    path('ops/customers/<int:customer_id>/locations/<int:location_id>/save/', views.location_save, name='location_save_edit'),
+    path('ops/locations/<int:location_id>/delete/', views.location_delete, name='location_delete'),
     path('ops/autoschedule/', views.ops_auto_schedule, name='ops_auto_schedule'),
     path('ops/import/', views.ops_import, name='ops_import'),
     path('ops/import/confirm/', views.ops_import_confirm, name='ops_import_confirm'),
@@ -41,5 +44,6 @@ urlpatterns = [
     path('reassignhistory/', views.reassign_history, name='reassign_history'),
     path('seedutilityfields/', views.seed_utility_fields, name='seed_utility_fields'),
     path('seedupcomingjobs/', views.seed_upcoming_jobs, name='seed_upcoming_jobs'),
+    path('seedcustomerwebsites/', views.seed_customer_websites, name='seed_customer_websites'),
     path('geocodecustomers/', views.geocode_customers, name='geocode_customers'),
 ]

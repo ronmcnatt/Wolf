@@ -69,6 +69,7 @@
           <td class="td-customer">
             <div style="font-weight:600;">{{ row.customer.business_name }}</div>
             {% if row.customer.email %}<div style="font-size:12px; color:var(--muted);">{{ row.customer.email }}</div>{% endif %}
+            {% if row.customer.website %}<div style="font-size:12px;"><a href="{{ row.customer.website }}" target="_blank" rel="noopener" style="color:var(--teal);">🌐 Website</a></div>{% endif %}
           </td>
           <td>
             <div>{{ row.customer.contact_name|default:"—" }}</div>

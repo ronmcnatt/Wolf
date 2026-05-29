@@ -58,7 +58,10 @@ Links Django's built-in `User` to a role. Roles: `technician`, `operations`, `ma
 Technician-specific fields: `counties` (JSONField — list of FL county strings they are certified to work in), `is_licensed` (bool), `license_expires` (DateField). Demo technician coverage: John Smith → Duval/Clay/St. Johns/Nassau; Marcus Thompson → Duval/Clay/St. Johns/Flagler; Rosa Diaz → Duval/Clay/St. Johns/Alachua.
 
 ### Customer (technician/models.py)
-Stores reusable customer/account records. Fields: business name, contact name, phone, email, billing address, city, state, county, zip, notes, property lat/lng, device lat/lng. Operations and Manager roles can create and edit. 10 sample customers seeded on startup with addresses and coordinates matching the demo jobs.
+Stores reusable customer/account records. Fields: business name, contact name, phone, email, **website** (URLField), billing address, city, state, county, zip, notes, property lat/lng, device lat/lng. Operations and Manager roles can create and edit. 10 sample customers seeded on startup with addresses and coordinates matching the demo jobs. Websites researched and populated for ~34 customers via `seedcustomerwebsites` endpoint.
+
+### CustomerLocation (technician/models.py)
+One-to-many service locations per Customer (FK → Customer, `related_name='locations'`). Each location has: label (e.g. "Main Office", "Building A"), address, city, state, county, zip_code, lat/lng (property), device_lat/device_lng. Managed via AJAX endpoints on the customer edit page — each location has its own map for property and device coordinates. When a customer has locations, the job form shows a location picker dropdown to pre-fill the job address/coords from a specific location.
 
 ### Job (technician/models.py)
 Stores all job/site information. Fields cover:
@@ -109,6 +112,8 @@ Login redirects automatically based on role. Unauthorized role access redirects 
 3. **No utility API integration** — `utility_submitted` field exists but no actual submission logic (contact JEA or BackflowManager for integration access)
 4. **Manager role** — currently sees Operations views; manager-specific reporting views not yet built
 5. **No password reset** — POC credentials only, no email/reset flow
+6. **No Paylocity Integration** - For Technician PTO, Coverage Areas, et. Al
+7. **No QuickBooks Integration** - For Estimates and Invoicing, M&A Invoice uploads, etc.
 
 ## Deployment
 - Platform: Render — https://wolf-9bbc.onrender.com
@@ -132,6 +137,7 @@ Login redirects automatically based on role. Unauthorized role access redirects 
 | 0008 | technician_credentials | counties (JSONField), is_licensed, license_expires on UserProfile |
 | 0009 | smoke_test_models | SmokeTestRun, SmokeTestCase |
 | 0010 | activity_log | ActivityLog |
+| 0011 | website_and_customer_locations | website (URLField) on Customer; CustomerLocation model |
 
 ## Sample Data (Supabase / Production)
 All one-time seed endpoints have been run against Supabase. Current state:
@@ -150,6 +156,7 @@ Seed endpoints (keep in urls.py for future reseeds, idempotent):
 - `GET /tech/seedutilityfields/` — patches utility_account_number on existing TestResults with demo account numbers (JEA/CCUA/SJC format by county)
 - `GET /tech/seedupcomingjobs/` — creates 45 pending unassigned jobs for May 6–8 2026 across Duval/St. Johns/Clay (idempotent — skips if already exist)
 - `GET /tech/geocodecustomers/` — geocodes all Customer records missing lat/lng via Nominatim at 1 req/sec; **run once after seedupcomingjobs** to populate coordinates for the 45 new customers so auto-schedule uses real distances
+- `GET /tech/seedcustomerwebsites/` — idempotent: sets `website` (and `email` when missing) on ~34 existing customers from researched data; **run once on Render after deploying migration 0011**
 
 ## Florida Utility Integration Reference
 Full FL utility research is in `florida_utilities.csv` at project root (60+ utilities). Key findings:
@@ -179,10 +186,11 @@ Full FL utility research is in `florida_utilities.csv` at project root (60+ util
 - [ ] Manager-specific reporting views (test results summary, technician performance)
 - [ ] Multi-company / multi-tenant architecture for acquired companies
 - [ ] Utility compliance report generation and submission
-- [ ] QuickBooks Online integration for invoicing
 - [ ] Integrate Repairs and Parts Inventory
-- [ ] Customer self orders a test, including via text
-- [ ] Integration with Paylocity, et. Al for work schedule, PTO, service area
+- [ ] Customer self orders a test, including via text, take picture of letter from utility, etc
+- [ ] Automation to request non-compliant devices from each utility
+- [ ] Workflow to test on behalf of utility and them bill customer
+
 
 ## Device Types Supported
 | Code | Full Name |

@@ -12,7 +12,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from functools import wraps
-from .models import UserProfile, Job, TestResult, Customer, ActivityLog
+from .models import UserProfile, Job, TestResult, Customer, CustomerLocation, ActivityLog
 
 def log_activity(request, activity, **detail):
     ip = request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip() \
@@ -585,14 +585,20 @@ def ops_job_form(request, job_id=None):
         'license_expires': str(t.profile.license_expires) if getattr(t, 'profile', None) and t.profile.license_expires else '',
     } for t in technicians])
 
+    customers_with_locations = customers.prefetch_related('locations')
     customers_json = json.dumps([{
         'id': c.id, 'business_name': c.business_name, 'contact_name': c.contact_name,
-        'phone': c.phone, 'email': c.email, 'address': c.address,
+        'phone': c.phone, 'email': c.email, 'website': c.website, 'address': c.address,
         'city': c.city, 'state': c.state, 'county': c.county,
         'zip_code': c.zip_code, 'notes': c.notes,
         'lat': c.lat, 'lng': c.lng,
         'device_lat': c.device_lat, 'device_lng': c.device_lng,
-    } for c in customers])
+        'locations': [{'id': l.id, 'label': l.label, 'address': l.address,
+                       'city': l.city, 'state': l.state, 'county': l.county,
+                       'zip_code': l.zip_code, 'lat': l.lat, 'lng': l.lng,
+                       'device_lat': l.device_lat, 'device_lng': l.device_lng}
+                      for l in c.locations.all()],
+    } for c in customers_with_locations])
 
     if request.method == 'POST':
         p = request.POST
@@ -669,6 +675,7 @@ def ops_customer_form(request, customer_id=None):
             customer.contact_name  = p.get('contact_name', '').strip()
             customer.phone         = p.get('phone', '').strip()
             customer.email         = p.get('email', '').strip()
+            customer.website       = p.get('website', '').strip()
             customer.address       = p.get('address', '').strip()
             customer.city          = p.get('city', '').strip()
             customer.state         = p.get('state', 'FL')
@@ -688,14 +695,17 @@ def ops_customer_form(request, customer_id=None):
             return redirect('/tech/ops/?tab=customers')
 
     job_history = []
+    locations = []
     if customer:
         job_history = Job.objects.filter(customer_ref=customer)\
                          .prefetch_related('test_results')\
                          .order_by('-scheduled_date')[:20]
+        locations = list(customer.locations.all())
 
     return render(request, 'technician/ops_customer_form.html', {
         'customer':    customer,
         'job_history': job_history,
+        'locations':   locations,
         'US_STATES':   US_STATES,
         'FL_COUNTIES': FL_COUNTIES,
         'error':       error,
@@ -718,6 +728,7 @@ def customer_save(request, customer_id=None):
     customer.contact_name = data.get('contact_name', '').strip()
     customer.phone = data.get('phone', '').strip()
     customer.email = data.get('email', '').strip()
+    customer.website = data.get('website', '').strip()
     customer.address = data.get('address', '').strip()
     customer.city = data.get('city', '').strip()
     customer.state = data.get('state', 'FL').strip()
@@ -735,16 +746,70 @@ def customer_save(request, customer_id=None):
     customer.device_lng = _flt('device_lng')
     customer.save()
 
+    locs = [{'id': l.id, 'label': l.label, 'address': l.address,
+              'city': l.city, 'state': l.state, 'county': l.county,
+              'zip_code': l.zip_code, 'lat': l.lat, 'lng': l.lng,
+              'device_lat': l.device_lat, 'device_lng': l.device_lng}
+             for l in customer.locations.all()]
+
     return JsonResponse({'ok': True, 'customer': {
         'id': customer.id, 'business_name': customer.business_name,
         'contact_name': customer.contact_name, 'phone': customer.phone,
-        'email': customer.email, 'address': customer.address,
+        'email': customer.email, 'website': customer.website, 'address': customer.address,
         'city': customer.city, 'state': customer.state,
         'county': customer.county, 'zip_code': customer.zip_code,
         'notes': customer.notes,
         'lat': customer.lat, 'lng': customer.lng,
         'device_lat': customer.device_lat, 'device_lng': customer.device_lng,
+        'locations': locs,
     }})
+
+
+@role_required('operations', 'manager')
+def location_save(request, customer_id, location_id=None):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+    customer = get_object_or_404(Customer, pk=customer_id)
+    loc = get_object_or_404(CustomerLocation, pk=location_id, customer=customer) \
+          if location_id else CustomerLocation(customer=customer)
+
+    loc.label = data.get('label', 'Main').strip() or 'Main'
+    loc.address = data.get('address', '').strip()
+    loc.city = data.get('city', '').strip()
+    loc.state = data.get('state', 'FL').strip()
+    loc.county = data.get('county', '').strip()
+    loc.zip_code = data.get('zip_code', '').strip()
+
+    def _flt(key):
+        try: return float(data[key]) if data.get(key) is not None else None
+        except (ValueError, TypeError): return None
+
+    loc.lat = _flt('lat')
+    loc.lng = _flt('lng')
+    loc.device_lat = _flt('device_lat')
+    loc.device_lng = _flt('device_lng')
+    loc.save()
+
+    return JsonResponse({'ok': True, 'location': {
+        'id': loc.id, 'label': loc.label, 'address': loc.address,
+        'city': loc.city, 'state': loc.state, 'county': loc.county,
+        'zip_code': loc.zip_code, 'lat': loc.lat, 'lng': loc.lng,
+        'device_lat': loc.device_lat, 'device_lng': loc.device_lng,
+    }})
+
+
+@role_required('operations', 'manager')
+def location_delete(request, location_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    loc = get_object_or_404(CustomerLocation, pk=location_id)
+    loc.delete()
+    return JsonResponse({'ok': True})
 
 
 # ── Temporary: seed historical job/test data on Render ────────────────────────
@@ -1050,6 +1115,56 @@ def geocode_customers(request):
         })
     except Exception as exc:
         return JsonResponse({'ok': False, 'error': str(exc), 'trace': tb.format_exc()}, status=500)
+
+
+def seed_customer_websites(request):
+    """Idempotent: set website (and email when missing) on existing customers from researched data."""
+    WEBSITE_DATA = [
+        (4,  'https://www.flemingislandsurgerycenter.com/', ''),
+        (5,  'https://www.sjcfl.us/departments/parks-recreation/', ''),
+        (6,  'https://www.pontevedra.com/', ''),
+        (7,  'https://www.coab.us/', ''),
+        (9,  'https://mandarinpres.com/', ''),
+        (13, 'https://murrayhilltheatre.com/', ''),
+        (15, 'https://www.regencyplaceapts.com', ''),
+        (17, 'https://www.baptistjax.com/locations/baptist-medical-center-south', ''),
+        (19, 'https://www.hilton.com/en/hotels/ustsmdt-doubletree-st-augustine-historic-district/', ''),
+        (20, 'https://www.golfwgv.com/', ''),
+        (21, 'https://www.stjohnsgolf.com/', ''),
+        (22, 'https://www.hcafloridahealthcare.com/locations/orange-park-hospital', ''),
+        (25, 'https://www.ihg.com/hotelindigo/hotels/us/en/jacksonville/jaxin/hoteldetail', ''),
+        (26, 'https://www.hcafloridahealthcare.com/locations/memorial-hospital', ''),
+        (27, 'https://www.jacksonvillezoo.org/', ''),
+        (28, 'https://www.thestrandjacksonville.com/', ''),
+        (29, 'https://www.autonationfordjacksonville.com/', ''),
+        (30, 'https://www.publix.com/locations/1022-mandarin-oaks-shopping-center', ''),
+        (31, 'https://www.marriott.com/en-us/hotels/jaxfl-marriott-jacksonville/', ''),
+        (32, 'https://fcymca.org/locations/', ''),
+        (33, 'https://tpc.com/sawgrass/', ''),
+        (34, 'https://www.nocatee.com/town-center', ''),
+        (36, 'https://www.premiumoutlets.com/outlet/st-augustine', ''),
+        (37, 'https://www.oneclay.net/o/mhs/', ''),
+        (39, 'https://www.claycountygov.com/', ''),
+        (41, 'https://www.flyjacksonville.com/jaa/', 'jaxactionline@flyjax.com'),
+        (42, 'https://ortegariverclub.net/', ''),
+        (45, 'https://www.publix.com/locations/1214-atlantic-plaza', ''),
+        (46, 'https://www.deerwoodclub.com/', 'ariley@deerwoodclub.com'),
+        (47, 'https://www.walmart.com/store/1082-jacksonville-fl', ''),
+        (48, 'https://www.hilton.com/en/hotels/sgjvbhx-hampton-suites-st-augustine-vilano-beach/', ''),
+        (49, 'https://www.palenciaclub.com/', ''),
+        (50, 'https://www.nps.gov/casa/index.htm', ''),
+        (52, 'https://www.hcafloridahealthcare.com/locations/orange-park-hospital', ''),
+    ]
+    updated = 0
+    for cid, website, email in WEBSITE_DATA:
+        c = Customer.objects.filter(pk=cid).first()
+        if c:
+            c.website = website
+            if email and not c.email:
+                c.email = email
+            c.save(update_fields=['website', 'email'])
+            updated += 1
+    return JsonResponse({'ok': True, 'updated': updated})
 
 
 def seed_upcoming_jobs(request):

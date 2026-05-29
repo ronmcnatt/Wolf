@@ -75,6 +75,14 @@
               </div>
             </div>
 
+            <div class="form-group span-2" id="location-picker-row" style="display:none;">
+              <label>Service Location</label>
+              <select id="location-select" onchange="onLocationChange(this.value)">
+                <option value="">— Use customer primary address —</option>
+              </select>
+              <div style="font-size:11px; color:var(--muted); margin-top:4px;">Select a specific service location, or leave blank to use the customer's primary address.</div>
+            </div>
+
             <div class="form-group span-2">
               <label>Customer / Business Name</label>
               <input type="text" name="customer" id="field-customer" value="{{ job.customer|default:'' }}" required placeholder="e.g. Riverside Auto Wash">
@@ -236,6 +244,10 @@
           <input type="email" id="m-email" placeholder="contact@business.com">
         </div>
         <div class="form-group span-2">
+          <label>Website</label>
+          <input type="url" id="m-website" placeholder="https://www.business.com">
+        </div>
+        <div class="form-group span-2">
           <label>Billing / Mailing Address</label>
           <input type="text" id="m-address" placeholder="123 Main St">
         </div>
@@ -391,10 +403,63 @@
 
   function onCustomerChange(id) {
     const editBtn = document.getElementById('edit-customer-btn');
-    if (!id) { editBtn.style.display = 'none'; clearCustomerFields(); return; }
+    const locRow = document.getElementById('location-picker-row');
+    if (!id) { editBtn.style.display = 'none'; locRow.style.display = 'none'; clearCustomerFields(); return; }
     editBtn.style.display = 'inline-flex';
     const c = CUSTOMERS.find(x => String(x.id) === String(id));
-    if (c) fillCustomerFields(c);
+    if (c) {
+      // Rebuild location picker
+      const locSel = document.getElementById('location-select');
+      locSel.innerHTML = '<option value="">— Use customer primary address —</option>';
+      if (c.locations && c.locations.length > 0) {
+        c.locations.forEach(l => {
+          const o = document.createElement('option');
+          o.value = l.id;
+          const addrStr = [l.address, l.city, l.state].filter(Boolean).join(', ');
+          o.text = l.label + (addrStr ? ' — ' + addrStr : '');
+          o.dataset.loc = JSON.stringify(l);
+          locSel.appendChild(o);
+        });
+        locRow.style.display = '';
+      } else {
+        locRow.style.display = 'none';
+      }
+      fillCustomerFields(c);
+    }
+  }
+
+  function onLocationChange(locId) {
+    const locSel = document.getElementById('location-select');
+    const custId = document.getElementById('customer-select').value;
+    const c = CUSTOMERS.find(x => String(x.id) === String(custId));
+    if (!locId) {
+      if (c) fillCustomerFields(c);
+      return;
+    }
+    const opt = locSel.querySelector(`option[value="${locId}"]`);
+    if (!opt) return;
+    const loc = JSON.parse(opt.dataset.loc);
+    // Fill address from selected location
+    let addrParts = [loc.address, loc.city, loc.state, loc.zip_code];
+    document.getElementById('address-input').value = addrParts.filter(Boolean).join(', ');
+    const stateSel = document.getElementById('state-select');
+    stateSel.value = loc.state || 'FL';
+    updateCounties(stateSel.value);
+    if (loc.county) {
+      document.getElementById('county-select').value = loc.county;
+      buildTechSelect(loc.county);
+    }
+    if (loc.lat && loc.lng) {
+      propMarker.setLatLng([loc.lat, loc.lng]);
+      propMap.setView([loc.lat, loc.lng], 17);
+      document.getElementById('lat').value = loc.lat;
+      document.getElementById('lng').value = loc.lng;
+      const dl = loc.device_lat || loc.lat, dlg = loc.device_lng || loc.lng;
+      devMarker.setLatLng([dl, dlg]);
+      devMap.setView([dl, dlg], 19);
+      document.getElementById('device_lat').value = dl;
+      document.getElementById('device_lng').value = dlg;
+    }
   }
 
   function fillCustomerFields(c) {
@@ -448,7 +513,7 @@
     editingCustomerId = null;
     document.getElementById('modal-error').style.display = 'none';
     document.getElementById('modal-title').textContent = 'Add Customer';
-    ['m-business-name','m-contact-name','m-phone','m-email','m-address','m-city','m-zip','m-notes'].forEach(id => {
+    ['m-business-name','m-contact-name','m-phone','m-email','m-website','m-address','m-city','m-zip','m-notes'].forEach(id => {
       document.getElementById(id).value = '';
     });
     document.getElementById('m-state').value = 'FL';
@@ -466,6 +531,7 @@
         document.getElementById('m-contact-name').value  = c.contact_name || '';
         document.getElementById('m-phone').value         = c.phone || '';
         document.getElementById('m-email').value         = c.email || '';
+        document.getElementById('m-website').value       = c.website || '';
         document.getElementById('m-address').value       = c.address || '';
         document.getElementById('m-city').value          = c.city || '';
         document.getElementById('m-zip').value           = c.zip_code || '';
@@ -490,6 +556,7 @@
       contact_name:  document.getElementById('m-contact-name').value.trim(),
       phone:         document.getElementById('m-phone').value.trim(),
       email:         document.getElementById('m-email').value.trim(),
+      website:       document.getElementById('m-website').value.trim(),
       address:       document.getElementById('m-address').value.trim(),
       city:          document.getElementById('m-city').value.trim(),
       state:         document.getElementById('m-state').value,
@@ -534,7 +601,7 @@
 
       // Rebuild customer select and select the saved customer
       rebuildCustomerSelect(String(c.id));
-      fillCustomerFields(c);
+      onCustomerChange(String(c.id));
       document.getElementById('edit-customer-btn').style.display = 'inline-flex';
       closeModal();
     } catch(e) {
