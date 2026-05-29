@@ -1901,6 +1901,7 @@ def admin_demo_reload_jobs(request):
     import os, json as _json
     from datetime import date, timedelta
     import random
+    from django.db import connection, transaction
 
     sql_dir   = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'sql')
     seed_path = os.path.join(sql_dir, 'demo_jobs_seed.json')
