@@ -53,4 +53,5 @@ urlpatterns = [
     path('seedupcomingjobs/', views.seed_upcoming_jobs, name='seed_upcoming_jobs'),
     path('seedcustomerwebsites/', views.seed_customer_websites, name='seed_customer_websites'),
     path('geocodecustomers/', views.geocode_customers, name='geocode_customers'),
+    path('seedcustomerportalusers/', views.seed_customer_portal_users, name='seed_customer_portal_users'),
 ]

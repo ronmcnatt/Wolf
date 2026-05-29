@@ -1929,6 +1929,50 @@ def admin_demo_reload_jobs(request):
         return JsonResponse({'ok': False, 'error': str(e)}, status=500)
 
 
+def seed_customer_portal_users(request):
+    """Create portal User accounts for all demo customers that have an email address."""
+    created, skipped, no_email = [], [], []
+
+    for customer in Customer.objects.filter(demo=True):
+        email = (customer.email or '').strip()
+        if not email:
+            no_email.append(customer.business_name)
+            continue
+
+        if customer.linked_user_id:
+            skipped.append(f'{customer.business_name} (already linked)')
+            continue
+
+        existing = User.objects.filter(username=email).first()
+        if existing:
+            UserProfile.objects.get_or_create(existing, defaults={'role': 'customer'})
+            customer.linked_user = existing
+            customer.save(update_fields=['linked_user'])
+            skipped.append(f'{customer.business_name} (user already existed, linked)')
+            continue
+
+        parts = (customer.contact_name or '').split(None, 1)
+        user = User.objects.create_user(
+            username=email,
+            email=email,
+            password=customer.portal_password or 'test123',
+            first_name=parts[0] if parts else '',
+            last_name=parts[1] if len(parts) > 1 else '',
+        )
+        UserProfile.objects.create(user=user, role='customer')
+        customer.linked_user = user
+        customer.save(update_fields=['linked_user'])
+        created.append(f'{customer.business_name} → {email}')
+
+    return JsonResponse({
+        'ok': True,
+        'created': created,
+        'skipped': skipped,
+        'no_email': no_email,
+        'summary': f'{len(created)} created, {len(skipped)} skipped, {len(no_email)} had no email',
+    })
+
+
 # ── Customer views ────────────────────────────────────────────────────────────
 
 @role_required('customer')
