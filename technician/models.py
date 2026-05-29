@@ -85,6 +85,9 @@ class Job(models.Model):
     customer_ref = models.ForeignKey(
         Customer, on_delete=models.SET_NULL, null=True, blank=True, related_name='jobs'
     )
+    location_ref = models.ForeignKey(
+        'CustomerLocation', on_delete=models.SET_NULL, null=True, blank=True, related_name='jobs'
+    )
     customer = models.CharField(max_length=200)
     address = models.CharField(max_length=300)
     contact = models.CharField(max_length=100, blank=True)

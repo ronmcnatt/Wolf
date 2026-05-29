@@ -219,13 +219,37 @@
     <!-- JOB & TEST HISTORY -->
     <div>
       <div class="card">
-        <h3>Service History</h3>
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+          <h3 style="margin:0;">Service History</h3>
+          {% if locations %}
+          <div style="display:flex; align-items:center; gap:8px;">
+            <label style="font-size:12px; color:var(--muted); white-space:nowrap;">Filter by location:</label>
+            <select onchange="window.location.href=this.value" style="font-size:12px; padding:4px 8px; border:1px solid #ddd; border-radius:6px; color:var(--navy);">
+              <option value="{% url 'ops_customer_edit' customer.id %}"
+                {% if not location_filter %}selected{% endif %}>All Locations</option>
+              {% for loc in locations %}
+              <option value="{% url 'ops_customer_edit' customer.id %}?location={{ loc.id }}"
+                {% if location_filter.id == loc.id %}selected{% endif %}>{{ loc.label }}</option>
+              {% endfor %}
+            </select>
+            {% if location_filter %}
+            <a href="{% url 'ops_customer_edit' customer.id %}" style="font-size:12px; color:var(--teal);">Clear</a>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+        {% if location_filter %}
+        <div style="font-size:12px; color:var(--teal); margin-bottom:10px; padding:6px 10px; background:#f0fafa; border-radius:6px; border:1px solid #b2e4e4;">
+          Showing jobs at: <strong>{{ location_filter.label }}</strong>
+        </div>
+        {% endif %}
         {% if job_history %}
-        <div class="ops-table-wrap" style="margin-top:12px;">
+        <div class="ops-table-wrap">
           <table class="ops-table">
             <thead>
               <tr>
                 <th>Date</th>
+                <th>Location</th>
                 <th>Device</th>
                 <th>Technician</th>
                 <th>Status</th>
@@ -237,6 +261,13 @@
               {% with result=job.test_results.all.0 %}
               <tr>
                 <td style="white-space:nowrap;">{{ job.scheduled_date|date:"M j, Y" }}</td>
+                <td style="font-size:12px;">
+                  {% if job.location_ref %}
+                  <span style="background:#e8f7f7; color:var(--teal); border-radius:4px; padding:2px 7px; font-weight:600; white-space:nowrap;">{{ job.location_ref.label }}</span>
+                  {% else %}
+                  <span style="color:var(--muted);">Primary Address</span>
+                  {% endif %}
+                </td>
                 <td>
                   <span class="badge badge-device">{{ job.device_type }}{% if job.device_size %} · {{ job.device_size }}{% endif %}</span>
                   {% if job.serial %}<div style="font-size:11px;color:var(--muted);margin-top:2px;">S/N: {{ job.serial }}</div>{% endif %}
@@ -272,7 +303,7 @@
         {% else %}
         <div style="text-align:center; padding:32px 0; color:var(--muted);">
           <div style="font-size:36px; margin-bottom:12px;">📋</div>
-          <p>No service history yet.</p>
+          <p>{% if location_filter %}No jobs at this location yet.{% else %}No service history yet.{% endif %}</p>
           <a href="{% url 'ops_job_new' %}?customer={{ customer.id }}" class="btn btn-outline btn-sm" style="margin-top:12px;">Schedule First Job</a>
         </div>
         {% endif %}

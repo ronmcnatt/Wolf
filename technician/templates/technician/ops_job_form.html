@@ -78,10 +78,11 @@
             <div class="form-group span-2" id="location-picker-row" style="display:none;">
               <label>Service Location</label>
               <select id="location-select" onchange="onLocationChange(this.value)">
-                <option value="">— Use customer primary address —</option>
+                <option value="">— Billing / Primary Address —</option>
               </select>
-              <div style="font-size:11px; color:var(--muted); margin-top:4px;">Select a specific service location, or leave blank to use the customer's primary address.</div>
+              <div style="font-size:11px; color:var(--muted); margin-top:4px;">Select a named service location, or leave blank to use the customer's billing address.</div>
             </div>
+            <input type="hidden" name="location_ref" id="location-ref-input" value="{% if job.location_ref_id %}{{ job.location_ref_id }}{% endif %}">
 
             <div class="form-group span-2">
               <label>Customer / Business Name</label>
@@ -432,14 +433,15 @@
     const locSel = document.getElementById('location-select');
     const custId = document.getElementById('customer-select').value;
     const c = CUSTOMERS.find(x => String(x.id) === String(custId));
+    document.getElementById('location-ref-input').value = locId || '';
     if (!locId) {
+      // Fallback: fill from billing address
       if (c) fillCustomerFields(c);
       return;
     }
     const opt = locSel.querySelector(`option[value="${locId}"]`);
     if (!opt) return;
     const loc = JSON.parse(opt.dataset.loc);
-    // Fill address from selected location
     let addrParts = [loc.address, loc.city, loc.state, loc.zip_code];
     document.getElementById('address-input').value = addrParts.filter(Boolean).join(', ');
     const stateSel = document.getElementById('state-select');
@@ -631,10 +633,30 @@
     });
   }
 
-  // ── On page load: init edit button, county dropdown, and tech list ──────────
+  // ── On page load: init edit button, location picker, county dropdown, tech list ─
+  const INIT_LOCATION_REF = '{{ job.location_ref_id|default:"" }}';
   (function() {
     const sel = document.getElementById('customer-select');
-    if (sel.value) document.getElementById('edit-customer-btn').style.display = 'inline-flex';
+    if (sel.value) {
+      document.getElementById('edit-customer-btn').style.display = 'inline-flex';
+      // Rebuild location picker for the pre-selected customer
+      const c = CUSTOMERS.find(x => String(x.id) === String(sel.value));
+      if (c && c.locations && c.locations.length > 0) {
+        const locRow = document.getElementById('location-picker-row');
+        const locSel = document.getElementById('location-select');
+        locSel.innerHTML = '<option value="">— Billing / Primary Address —</option>';
+        c.locations.forEach(l => {
+          const o = document.createElement('option');
+          o.value = l.id;
+          const addrStr = [l.address, l.city, l.state].filter(Boolean).join(', ');
+          o.text = l.label + (addrStr ? ' — ' + addrStr : '');
+          o.dataset.loc = JSON.stringify(l);
+          if (String(l.id) === INIT_LOCATION_REF) o.selected = true;
+          locSel.appendChild(o);
+        });
+        locRow.style.display = '';
+      }
+    }
     const state = document.getElementById('state-select').value;
     if (state !== 'FL') updateCounties(state);
     const county = document.getElementById('county-select').value;

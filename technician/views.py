@@ -611,9 +611,12 @@ def ops_job_form(request, job_id=None):
         assigned = User.objects.filter(pk=assigned_id).first() if assigned_id else None
         customer_ref_id = p.get('customer_ref') or None
         customer_ref = Customer.objects.filter(pk=customer_ref_id).first() if customer_ref_id else None
+        location_ref_id = p.get('location_ref') or None
+        location_ref = CustomerLocation.objects.filter(pk=location_ref_id).first() if location_ref_id else None
 
         data = dict(
             customer_ref=customer_ref,
+            location_ref=location_ref,
             customer=p.get('customer', ''),
             address=p.get('address', ''),
             contact=p.get('contact', ''),
@@ -658,6 +661,25 @@ def ops_job_form(request, job_id=None):
 
 
 
+def _sync_primary_location(customer):
+    """Keep a 'Primary Address' CustomerLocation in sync with the customer's billing address."""
+    if not customer.address:
+        return
+    loc, _ = CustomerLocation.objects.get_or_create(
+        customer=customer, label='Primary Address',
+    )
+    loc.address    = customer.address
+    loc.city       = customer.city
+    loc.state      = customer.state
+    loc.county     = customer.county
+    loc.zip_code   = customer.zip_code
+    loc.lat        = customer.lat
+    loc.lng        = customer.lng
+    loc.device_lat = customer.device_lat
+    loc.device_lng = customer.device_lng
+    loc.save()
+
+
 @role_required('operations', 'manager')
 def ops_customer_form(request, customer_id=None):
     customer = get_object_or_404(Customer, pk=customer_id) if customer_id else None
@@ -692,23 +714,32 @@ def ops_customer_form(request, customer_id=None):
             customer.device_lat = _pflt('device_lat')
             customer.device_lng = _pflt('device_lng')
             customer.save()
+            _sync_primary_location(customer)
             return redirect('/tech/ops/?tab=customers')
 
     job_history = []
     locations = []
+    location_filter = None
     if customer:
-        job_history = Job.objects.filter(customer_ref=customer)\
-                         .prefetch_related('test_results')\
-                         .order_by('-scheduled_date')[:20]
         locations = list(customer.locations.all())
+        loc_filter_id = request.GET.get('location') or None
+        location_filter = next((l for l in locations if str(l.id) == loc_filter_id), None) if loc_filter_id else None
+        qs = Job.objects.filter(customer_ref=customer)\
+                        .select_related('location_ref')\
+                        .prefetch_related('test_results')\
+                        .order_by('-scheduled_date')
+        if location_filter:
+            qs = qs.filter(location_ref=location_filter)
+        job_history = list(qs[:20])
 
     return render(request, 'technician/ops_customer_form.html', {
-        'customer':    customer,
-        'job_history': job_history,
-        'locations':   locations,
-        'US_STATES':   US_STATES,
-        'FL_COUNTIES': FL_COUNTIES,
-        'error':       error,
+        'customer':        customer,
+        'job_history':     job_history,
+        'locations':       locations,
+        'location_filter': location_filter,
+        'US_STATES':       US_STATES,
+        'FL_COUNTIES':     FL_COUNTIES,
+        'error':           error,
     })
 
 
@@ -745,6 +776,7 @@ def customer_save(request, customer_id=None):
     customer.device_lat = _flt('device_lat')
     customer.device_lng = _flt('device_lng')
     customer.save()
+    _sync_primary_location(customer)
 
     locs = [{'id': l.id, 'label': l.label, 'address': l.address,
               'city': l.city, 'state': l.state, 'county': l.county,
