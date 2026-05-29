@@ -274,10 +274,16 @@
 
       <div class="auto-sched-body">
         <div class="auto-sched-field">
-          <label class="auto-sched-label">Date to Schedule</label>
-          <input type="date" id="schedDate" value="{{ today|date:'Y-m-d' }}"
+          <label class="auto-sched-label">Start Date</label>
+          <input type="date" id="schedDateStart" value="{{ today|date:'Y-m-d' }}"
                  class="auto-sched-input"
                  onchange="document.getElementById('geocodeDateLabel').textContent = this.value || 'selected date'">
+        </div>
+
+        <div class="auto-sched-field">
+          <label class="auto-sched-label">End Date <span style="font-weight:400; opacity:.6; font-size:11px;">(optional — for multi-day)</span></label>
+          <input type="date" id="schedDateEnd" value="{{ today|date:'Y-m-d' }}"
+                 class="auto-sched-input">
         </div>
 
         <div class="auto-sched-field">
@@ -300,7 +306,7 @@
         </div>
 
         <div class="auto-sched-field">
-          <label class="auto-sched-label">Max Trips Per Technician</label>
+          <label class="auto-sched-label">Max Trips / Tech / Day</label>
           <select id="maxTrips" class="auto-sched-input">
             <option value="5">5</option>
             <option value="6">6</option>
@@ -369,14 +375,16 @@ function updateTechLabel() {
 
 // ── Auto-schedule ──
 function runAutoSchedule() {
-  var date     = document.getElementById('schedDate').value;
-  var techIds  = Array.from(document.querySelectorAll('.tech-checkbox:checked')).map(c => c.value);
-  var maxTrips = parseInt(document.getElementById('maxTrips').value);
-  var unassign = document.getElementById('unassignTrips').value === 'yes';
+  var dateStart = document.getElementById('schedDateStart').value;
+  var dateEnd   = document.getElementById('schedDateEnd').value;
+  var techIds   = Array.from(document.querySelectorAll('.tech-checkbox:checked')).map(c => c.value);
+  var maxTrips  = parseInt(document.getElementById('maxTrips').value);
+  var unassign  = document.getElementById('unassignTrips').value === 'yes';
   var resultDiv = document.getElementById('schedResult');
 
-  if (!date) { showSchedResult('error', 'Please select a date.'); return; }
+  if (!dateStart) { showSchedResult('error', 'Please select a start date.'); return; }
   if (!techIds.length) { showSchedResult('error', 'Select at least one technician.'); return; }
+  if (dateEnd && dateEnd < dateStart) { showSchedResult('error', 'End date must be on or after start date.'); return; }
 
   var btn = document.querySelector('.auto-sched-btn');
   btn.disabled = true;
@@ -385,7 +393,7 @@ function runAutoSchedule() {
   fetch(AUTO_SCHEDULE_URL, {
     method: 'POST',
     headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN},
-    body: JSON.stringify({date: date, tech_ids: techIds, max_trips: maxTrips, unassign: unassign})
+    body: JSON.stringify({date_start: dateStart, date_end: dateEnd || dateStart, tech_ids: techIds, max_trips: maxTrips, unassign: unassign})
   })
   .then(r => r.json())
   .then(data => {
@@ -401,16 +409,21 @@ function runAutoSchedule() {
     if (data.skipped > 0) html += ' · ' + data.skipped + ' skipped';
     if (data.total_miles) html += '<br><span style="font-size:11px;opacity:.75;">Total driving est. ' + data.total_miles + ' mi</span>';
     html += '</div>';
-    data.details.forEach(function(d) {
-      html += '<div class="sched-result-tech">';
-      html += '<span class="sched-result-tech-name">' + d.tech + '</span>';
-      var countLabel = d.new + ' new · ' + d.total + ' total';
-      if (d.route_miles) countLabel += ' · ' + d.route_miles + ' mi';
-      html += '<span class="sched-result-tech-count">' + countLabel + '</span>';
-      d.jobs.forEach(function(j) {
-        html += '<div class="sched-result-job">· ' + j + '</div>';
+    data.details.forEach(function(dayBlock) {
+      if (data.multi_day) {
+        html += '<div style="font-size:11px; font-weight:600; color:var(--muted); margin:10px 0 4px; text-transform:uppercase; letter-spacing:.04em;">' + dayBlock.date + (dayBlock.miles ? ' · ' + dayBlock.miles + ' mi' : '') + '</div>';
+      }
+      dayBlock.techs.forEach(function(d) {
+        html += '<div class="sched-result-tech">';
+        html += '<span class="sched-result-tech-name">' + d.tech + '</span>';
+        var countLabel = d.new + ' new · ' + d.total + ' total';
+        if (d.route_miles) countLabel += ' · ' + d.route_miles + ' mi';
+        html += '<span class="sched-result-tech-count">' + countLabel + '</span>';
+        d.jobs.forEach(function(j) {
+          html += '<div class="sched-result-job">· ' + j + '</div>';
+        });
+        html += '</div>';
       });
-      html += '</div>';
     });
     if (data.skipped_detail && data.skipped_detail.length) {
       html += '<div class="sched-result-skipped">';
@@ -447,7 +460,7 @@ function runGeocodeAddresses(resume) {
   var resultDiv = document.getElementById('schedResult');
   if (!resume) {
     _geocodeTotals = {geocoded: 0, failed: 0, skipped: 0};
-    _geocodeDate = document.getElementById('schedDate').value;
+    _geocodeDate = document.getElementById('schedDateStart').value;
     btn.textContent = 'Geocoding…';
     var label = _geocodeDate ? 'for ' + _geocodeDate : '(all customers)';
     resultDiv.innerHTML = '<div class="sched-result-info">Geocoding addresses ' + label + '…</div>';

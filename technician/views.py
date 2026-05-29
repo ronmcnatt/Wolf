@@ -438,119 +438,41 @@ def ops_auto_schedule(request):
     if request.method != 'POST':
         return JsonResponse({'ok': False, 'error': 'POST required'}, status=405)
 
-    data      = json.loads(request.body)
-    date_str  = data.get('date', '').strip()
-    tech_ids  = [int(i) for i in data.get('tech_ids', [])]
-    max_trips = int(data.get('max_trips', 8))
-    unassign  = bool(data.get('unassign', False))
+    from datetime import date as date_cls, timedelta, datetime as dt, time as dtime
 
-    if not date_str:
+    data       = json.loads(request.body)
+    date_start = (data.get('date_start') or data.get('date', '')).strip()
+    date_end   = (data.get('date_end') or date_start).strip()
+    tech_ids   = [int(i) for i in data.get('tech_ids', [])]
+    max_trips  = int(data.get('max_trips', 8))
+    unassign   = bool(data.get('unassign', False))
+
+    if not date_start:
         return JsonResponse({'ok': False, 'error': 'Date is required'})
     if not tech_ids:
         return JsonResponse({'ok': False, 'error': 'Select at least one technician'})
 
-    # Unassign existing trips for selected techs on this date so the algo starts fresh
-    if unassign:
-        Job.objects.filter(
-            scheduled_date=date_str,
-            assigned_to__in=tech_ids,
-            status__in=['pending', 'in_progress'],
-        ).update(assigned_to=None, scheduled_time=None)
+    try:
+        start = date_cls.fromisoformat(date_start)
+        end   = date_cls.fromisoformat(date_end) if date_end else start
+    except ValueError:
+        return JsonResponse({'ok': False, 'error': 'Invalid date format'})
 
-    unassigned = list(
-        Job.objects.filter(scheduled_date=date_str, status='pending', assigned_to__isnull=True)
-        .select_related('customer_ref')
-    )
-    if not unassigned:
-        return JsonResponse({'ok': True, 'assigned': 0, 'skipped': 0,
-                             'message': 'No unassigned pending jobs for that date.',
-                             'details': []})
+    if end < start:
+        end = start
+
+    dates = []
+    d = start
+    while d <= end:
+        dates.append(str(d))
+        d += timedelta(days=1)
 
     def resolve_coords(job):
-        """Return (lat, lng) for a job: job coords → customer coords → county centroid."""
         if job.lat and job.lng:
             return (float(job.lat), float(job.lng))
         if job.customer_ref and job.customer_ref.lat and job.customer_ref.lng:
             return (float(job.customer_ref.lat), float(job.customer_ref.lng))
         return _COUNTY_CENTROIDS.get(job.county, (30.3322, -81.6557))
-
-    job_geo = {job.id: resolve_coords(job) for job in unassigned}
-
-    # Build per-tech state with centroid of existing assignments for this date
-    techs = User.objects.filter(id__in=tech_ids).select_related('profile')
-    state = {}
-    for t in techs:
-        existing = list(Job.objects.filter(assigned_to=t, scheduled_date=date_str)
-                        .select_related('customer_ref'))
-        ex_coords = [resolve_coords(j) for j in existing]
-        if ex_coords:
-            centroid = (
-                sum(c[0] for c in ex_coords) / len(ex_coords),
-                sum(c[1] for c in ex_coords) / len(ex_coords),
-            )
-        else:
-            centroid = None  # spread below
-        state[t.id] = {
-            'user':     t,
-            'name':     t.get_full_name() or t.username,
-            'counties': set(t.profile.counties or []),
-            'existing': len(existing),
-            'total':    len(existing),
-            'centroid': centroid,
-            'new_jobs': [],
-        }
-
-    # Spread techs with no existing jobs evenly across the job bounding box (east→west)
-    no_centroid = [s for s in state.values() if s['centroid'] is None]
-    if no_centroid:
-        lats = [c[0] for c in job_geo.values()]
-        lngs = [c[1] for c in job_geo.values()]
-        mid_lat = (min(lats) + max(lats)) / 2
-        min_lng, max_lng = min(lngs), max(lngs)
-        n = len(no_centroid)
-        for i, s in enumerate(no_centroid):
-            frac = (i + 0.5) / n
-            s['centroid'] = (mid_lat, min_lng + frac * (max_lng - min_lng))
-
-    # Sort jobs from geographic center outward so edge jobs fill first
-    all_lats = [c[0] for c in job_geo.values()]
-    all_lngs = [c[1] for c in job_geo.values()]
-    geo_center = (sum(all_lats) / len(all_lats), sum(all_lngs) / len(all_lngs))
-    remaining = sorted(unassigned, key=lambda j: haversine(*geo_center, *job_geo[j.id]))
-
-    assigned_count = 0
-    skipped = []
-
-    for job in remaining:
-        jlat, jlng = job_geo[job.id]
-        eligible = [
-            s for s in state.values()
-            if (not job.county or job.county in s['counties'])
-            and s['total'] < max_trips
-        ]
-        if not eligible:
-            reason = ('capacity full' if any(job.county in s['counties'] for s in state.values())
-                      else f'no tech covers {job.county} county')
-            skipped.append({'customer': job.customer, 'reason': reason})
-            continue
-
-        # Nearest centroid wins; tiebreak on fewest total jobs
-        eligible.sort(key=lambda s: (haversine(s['centroid'][0], s['centroid'][1], jlat, jlng),
-                                     s['total']))
-        best = eligible[0]
-        job.assigned_to = best['user']
-        job.save()
-        best['new_jobs'].append(job)
-        best['total'] += 1
-
-        # Running centroid update
-        n = best['total']
-        clat, clng = best['centroid']
-        best['centroid'] = ((clat * (n - 1) + jlat) / n, (clng * (n - 1) + jlng) / n)
-        assigned_count += 1
-
-    # 2-opt route optimization per tech, then assign scheduled times
-    from datetime import datetime as dt, time as dtime, timedelta
 
     def _route_dist(coords):
         return sum(haversine(*coords[i], *coords[i + 1]) for i in range(len(coords) - 1))
@@ -568,50 +490,165 @@ def ops_auto_schedule(request):
                         improved = True
         return best
 
-    details = []
-    total_miles_all = 0.0
+    total_assigned     = 0
+    total_skipped      = 0
+    total_miles_all    = 0.0
+    all_day_details    = []   # [{date, techs, miles}]
+    all_skipped_detail = []
 
-    for s in state.values():
-        if not s['new_jobs']:
+    for date_str in dates:
+        # Unassign existing trips for selected techs on this date so the algo starts fresh
+        if unassign:
+            Job.objects.filter(
+                scheduled_date=date_str,
+                assigned_to__in=tech_ids,
+                status__in=['pending', 'in_progress'],
+            ).update(assigned_to=None, scheduled_time=None)
+
+        unassigned = list(
+            Job.objects.filter(scheduled_date=date_str, status='pending', assigned_to__isnull=True)
+            .select_related('customer_ref')
+        )
+        if not unassigned:
             continue
 
-        job_list = s['new_jobs']
-        coords   = [job_geo[j.id] for j in job_list]
+        job_geo = {job.id: resolve_coords(job) for job in unassigned}
 
-        if len(coords) >= 3:
-            opt_coords = two_opt(coords)
-            # Map optimised coords back to jobs (use index to avoid float equality issues)
-            coord_index = {coords[i]: i for i in range(len(coords))}
-            ordered = [job_list[coord_index[c]] for c in opt_coords]
-        else:
-            opt_coords = coords
-            ordered    = job_list
+        # Build per-tech state — max_trips cap is per day, so state is fresh each iteration
+        techs = User.objects.filter(id__in=tech_ids).select_related('profile')
+        state = {}
+        for t in techs:
+            existing = list(Job.objects.filter(assigned_to=t, scheduled_date=date_str)
+                            .select_related('customer_ref'))
+            ex_coords = [resolve_coords(j) for j in existing]
+            if ex_coords:
+                centroid = (
+                    sum(c[0] for c in ex_coords) / len(ex_coords),
+                    sum(c[1] for c in ex_coords) / len(ex_coords),
+                )
+            else:
+                centroid = None
+            state[t.id] = {
+                'user':     t,
+                'name':     t.get_full_name() or t.username,
+                'counties': set(t.profile.counties or []),
+                'existing': len(existing),
+                'total':    len(existing),
+                'centroid': centroid,
+                'new_jobs': [],
+            }
 
-        route_miles = _route_dist(opt_coords) if len(opt_coords) > 1 else 0.0
-        total_miles_all += route_miles
+        # Spread techs with no existing jobs evenly across the job bounding box (east→west)
+        no_centroid = [s for s in state.values() if s['centroid'] is None]
+        if no_centroid:
+            lats = [c[0] for c in job_geo.values()]
+            lngs = [c[1] for c in job_geo.values()]
+            mid_lat = (min(lats) + max(lats)) / 2
+            min_lng, max_lng = min(lngs), max(lngs)
+            n = len(no_centroid)
+            for i, s in enumerate(no_centroid):
+                frac = (i + 0.5) / n
+                s['centroid'] = (mid_lat, min_lng + frac * (max_lng - min_lng))
 
-        # Assign scheduled times: 8 am + 45 min per stop
-        for idx, job in enumerate(ordered):
-            sched = (dt.combine(dt.today(), dtime(8, 0)) + timedelta(minutes=idx * 45)).time()
-            job.scheduled_time = sched
+        # Sort jobs from geographic center outward so edge jobs fill first
+        all_lats = [c[0] for c in job_geo.values()]
+        all_lngs = [c[1] for c in job_geo.values()]
+        geo_center = (sum(all_lats) / len(all_lats), sum(all_lngs) / len(all_lngs))
+        remaining = sorted(unassigned, key=lambda j: haversine(*geo_center, *job_geo[j.id]))
+
+        day_assigned = 0
+        day_skipped  = []
+
+        for job in remaining:
+            jlat, jlng = job_geo[job.id]
+            eligible = [
+                s for s in state.values()
+                if (not job.county or job.county in s['counties'])
+                and s['total'] < max_trips
+            ]
+            if not eligible:
+                reason = ('capacity full' if any(job.county in s['counties'] for s in state.values())
+                          else f'no tech covers {job.county} county')
+                day_skipped.append({'customer': job.customer, 'reason': reason})
+                continue
+
+            # Nearest centroid wins; tiebreak on fewest total jobs
+            eligible.sort(key=lambda s: (haversine(s['centroid'][0], s['centroid'][1], jlat, jlng),
+                                         s['total']))
+            best = eligible[0]
+            job.assigned_to = best['user']
             job.save()
+            best['new_jobs'].append(job)
+            best['total'] += 1
 
-        details.append({
-            'tech':        s['name'],
-            'new':         len(job_list),
-            'existing':    s['existing'],
-            'total':       s['total'],
-            'route_miles': round(route_miles, 1),
-            'jobs':        [j.customer for j in ordered],
-        })
+            # Running centroid update
+            n = best['total']
+            clat, clng = best['centroid']
+            best['centroid'] = ((clat * (n - 1) + jlat) / n, (clng * (n - 1) + jlng) / n)
+            day_assigned += 1
+
+        # 2-opt route optimization per tech, then assign scheduled times
+        day_details = []
+        day_miles   = 0.0
+
+        for s in state.values():
+            if not s['new_jobs']:
+                continue
+
+            job_list = s['new_jobs']
+            coords   = [job_geo[j.id] for j in job_list]
+
+            if len(coords) >= 3:
+                opt_coords  = two_opt(coords)
+                coord_index = {coords[i]: i for i in range(len(coords))}
+                ordered     = [job_list[coord_index[c]] for c in opt_coords]
+            else:
+                opt_coords = coords
+                ordered    = job_list
+
+            route_miles = _route_dist(opt_coords) if len(opt_coords) > 1 else 0.0
+            day_miles  += route_miles
+
+            # Assign scheduled times: 8 am + 45 min per stop
+            for idx, job in enumerate(ordered):
+                sched = (dt.combine(dt.today(), dtime(8, 0)) + timedelta(minutes=idx * 45)).time()
+                job.scheduled_time = sched
+                job.save()
+
+            day_details.append({
+                'tech':        s['name'],
+                'new':         len(job_list),
+                'existing':    s['existing'],
+                'total':       s['total'],
+                'route_miles': round(route_miles, 1),
+                'jobs':        [j.customer for j in ordered],
+            })
+
+        total_assigned     += day_assigned
+        total_skipped      += len(day_skipped)
+        total_miles_all    += day_miles
+        all_skipped_detail.extend(day_skipped)
+
+        if day_details:
+            all_day_details.append({
+                'date':  date_str,
+                'techs': day_details,
+                'miles': round(day_miles, 1),
+            })
+
+    if total_assigned == 0 and total_skipped == 0:
+        msg = ('No unassigned pending jobs for that date range.'
+               if len(dates) > 1 else 'No unassigned pending jobs for that date.')
+        return JsonResponse({'ok': True, 'assigned': 0, 'skipped': 0, 'message': msg, 'details': []})
 
     return JsonResponse({
-        'ok':           True,
-        'assigned':     assigned_count,
-        'skipped':      len(skipped),
-        'skipped_detail': skipped,
-        'total_miles':  round(total_miles_all, 1),
-        'details':      details,
+        'ok':            True,
+        'assigned':      total_assigned,
+        'skipped':       total_skipped,
+        'skipped_detail': all_skipped_detail,
+        'total_miles':   round(total_miles_all, 1),
+        'details':       all_day_details,
+        'multi_day':     len(dates) > 1,
     })
 
 
