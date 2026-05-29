@@ -9,6 +9,13 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib import messages
+
+
+def _normalize_url(url):
+    url = url.strip()
+    if url and not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+    return url
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -698,7 +705,7 @@ def ops_customer_form(request, customer_id=None):
             customer.contact_name  = p.get('contact_name', '').strip()
             customer.phone         = p.get('phone', '').strip()
             customer.email         = p.get('email', '').strip()
-            customer.website       = p.get('website', '').strip()
+            customer.website       = _normalize_url(p.get('website', ''))
             customer.address       = p.get('address', '').strip()
             customer.city          = p.get('city', '').strip()
             customer.state         = p.get('state', 'FL')
@@ -766,7 +773,7 @@ def customer_save(request, customer_id=None):
     customer.contact_name = data.get('contact_name', '').strip()
     customer.phone = data.get('phone', '').strip()
     customer.email = data.get('email', '').strip()
-    customer.website = data.get('website', '').strip()
+    customer.website = _normalize_url(data.get('website', ''))
     customer.address = data.get('address', '').strip()
     customer.city = data.get('city', '').strip()
     customer.state = data.get('state', 'FL').strip()
