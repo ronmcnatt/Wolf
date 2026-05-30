@@ -76,11 +76,11 @@
             </div>
 
             <div class="form-group span-2" id="location-picker-row" style="display:none;">
-              <label>Service Location</label>
+              <label>Service Location <span style="color:var(--danger)">*</span></label>
               <select id="location-select" onchange="onLocationChange(this.value)">
-                <option value="">— Billing / Primary Address —</option>
+                <option value="">— Primary / Billing Address —</option>
               </select>
-              <div style="font-size:11px; color:var(--muted); margin-top:4px;">Select a named service location, or leave blank to use the customer's billing address.</div>
+              <div style="font-size:11px; color:var(--muted); margin-top:4px;">Choose which location this job is for. Selecting a location fills the address fields below.</div>
             </div>
             <input type="hidden" name="location_ref" id="location-ref-input" value="{% if job.location_ref_id %}{{ job.location_ref_id }}{% endif %}">
 
@@ -417,22 +417,20 @@
     editBtn.style.display = 'inline-flex';
     const c = CUSTOMERS.find(x => String(x.id) === String(id));
     if (c) {
-      // Rebuild location picker
+      // Rebuild location picker — always shown so every job is customer + location
       const locSel = document.getElementById('location-select');
-      locSel.innerHTML = '<option value="">— Use customer primary address —</option>';
-      if (c.locations && c.locations.length > 0) {
-        c.locations.forEach(l => {
-          const o = document.createElement('option');
-          o.value = l.id;
-          const addrStr = [l.address, l.city, l.state].filter(Boolean).join(', ');
-          o.text = l.label + (addrStr ? ' — ' + addrStr : '');
-          o.dataset.loc = JSON.stringify(l);
-          locSel.appendChild(o);
-        });
-        locRow.style.display = '';
-      } else {
-        locRow.style.display = 'none';
-      }
+      const primaryAddr = [c.address, c.city, c.state].filter(Boolean).join(', ');
+      locSel.innerHTML = `<option value="">Primary Address${primaryAddr ? ' — ' + primaryAddr : ''}</option>`;
+      (c.locations || []).forEach(l => {
+        const o = document.createElement('option');
+        o.value = l.id;
+        const addrStr = [l.address, l.city, l.state].filter(Boolean).join(', ');
+        o.text = l.label + (addrStr ? ' — ' + addrStr : '');
+        o.dataset.loc = JSON.stringify(l);
+        locSel.appendChild(o);
+      });
+      locRow.style.display = '';
+      document.getElementById('location-ref-input').value = '';
       fillCustomerFields(c);
     }
   }
@@ -648,11 +646,12 @@
       document.getElementById('edit-customer-btn').style.display = 'inline-flex';
       // Rebuild location picker for the pre-selected customer
       const c = CUSTOMERS.find(x => String(x.id) === String(sel.value));
-      if (c && c.locations && c.locations.length > 0) {
+      if (c) {
         const locRow = document.getElementById('location-picker-row');
         const locSel = document.getElementById('location-select');
-        locSel.innerHTML = '<option value="">— Billing / Primary Address —</option>';
-        c.locations.forEach(l => {
+        const primaryAddr = [c.address, c.city, c.state].filter(Boolean).join(', ');
+        locSel.innerHTML = `<option value="">Primary Address${primaryAddr ? ' — ' + primaryAddr : ''}</option>`;
+        (c.locations || []).forEach(l => {
           const o = document.createElement('option');
           o.value = l.id;
           const addrStr = [l.address, l.city, l.state].filter(Boolean).join(', ');
