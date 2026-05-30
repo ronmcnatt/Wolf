@@ -414,12 +414,12 @@
     if (c) {
       // Rebuild location picker — always shown so every job is customer + location
       const locSel = document.getElementById('location-select');
-      const primaryAddr = [c.address, c.city, c.state].filter(Boolean).join(', ');
+      const primaryAddr = fmtAddr(c.address, c.city, c.state, c.zip_code);
       locSel.innerHTML = `<option value="">Primary Address${primaryAddr ? ' — ' + primaryAddr : ''}</option>`;
       (c.locations || []).forEach(l => {
         const o = document.createElement('option');
         o.value = l.id;
-        const addrStr = [l.address, l.city, l.state, l.zip_code].filter(Boolean).join(', ');
+        const addrStr = fmtAddr(l.address, l.city, l.state, l.zip_code);
         o.text = l.label + (addrStr ? ' — ' + addrStr : '');
         o.dataset.loc = JSON.stringify(l);
         locSel.appendChild(o);
@@ -515,11 +515,22 @@
     document.getElementById('address-display').innerHTML = '<span style="color:#94a3b8;">Select a customer and location above</span>';
   }
 
+  // Formats a US address as "Street, City, ST 12345"
+  function fmtAddr(street, city, state, zip) {
+    const line1 = (street || '').trim();
+    const stateZip = [(state || '').trim(), (zip || '').trim()].filter(Boolean).join(' ');
+    const line2 = [city, stateZip].filter(Boolean).join(', ');
+    return [line1, line2].filter(Boolean).join(', ');
+  }
+
   function updateAddressDisplay(street, city, state, zip) {
-    const parts = [street, city, state, zip].filter(Boolean);
+    const text = fmtAddr(street, city, state, zip);
     const el = document.getElementById('address-display');
-    el.textContent = parts.length ? parts.join(', ') : '';
-    if (!parts.length) el.innerHTML = '<span style="color:#94a3b8;">Select a customer and location above</span>';
+    if (text) {
+      el.textContent = text;
+    } else {
+      el.innerHTML = '<span style="color:#94a3b8;">Select a customer and location above</span>';
+    }
   }
 
   // ── Customer modal ────────────────────────────────────────────────────────
@@ -656,12 +667,12 @@
       if (c) {
         const locRow = document.getElementById('location-picker-row');
         const locSel = document.getElementById('location-select');
-        const primaryAddr = [c.address, c.city, c.state, c.zip_code].filter(Boolean).join(', ');
+        const primaryAddr = fmtAddr(c.address, c.city, c.state, c.zip_code);
         locSel.innerHTML = `<option value="">Primary Address${primaryAddr ? ' — ' + primaryAddr : ''}</option>`;
         (c.locations || []).forEach(l => {
           const o = document.createElement('option');
           o.value = l.id;
-          const addrStr = [l.address, l.city, l.state, l.zip_code].filter(Boolean).join(', ');
+          const addrStr = fmtAddr(l.address, l.city, l.state, l.zip_code);
           o.text = l.label + (addrStr ? ' — ' + addrStr : '');
           o.dataset.loc = JSON.stringify(l);
           if (String(l.id) === INIT_LOCATION_REF) o.selected = true;
