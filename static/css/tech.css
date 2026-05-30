@@ -789,6 +789,33 @@ a { color: inherit; text-decoration: none; }
   padding: 16px 24px;
   border-top: 1px solid var(--border);
 }
+.modal-tab-bar {
+  display: flex;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-tab-btn {
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s;
+}
+.modal-tab-btn:hover { color: var(--navy); }
+.modal-tab-btn.active { color: var(--navy); border-bottom-color: var(--teal); }
+.loc-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.loc-row:last-child { border-bottom: none; }
 .customer-search-wrap { position: relative; }
 .customer-filter-input {
   width: 100%;

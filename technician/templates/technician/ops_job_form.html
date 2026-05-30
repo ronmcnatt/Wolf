@@ -71,7 +71,7 @@
               </div>
               <div style="display:flex; gap:8px; margin-top:8px;">
                 <button type="button" class="btn btn-outline btn-sm" onclick="openCustomerModal(null)">+ New Customer</button>
-                <button type="button" class="btn btn-outline btn-sm" id="edit-customer-btn" onclick="openCustomerModal('edit')" style="display:none;">✎ Edit Customer</button>
+                <button type="button" class="btn btn-outline btn-sm" id="edit-customer-btn" onclick="openCustomerModal('edit')" style="display:none;">✎ Edit Customer / Locations</button>
               </div>
             </div>
 
@@ -228,67 +228,137 @@
       <h3 id="modal-title">Add Customer</h3>
       <button class="modal-close" onclick="closeModal()" type="button">×</button>
     </div>
+
+    <!-- Tab bar — only visible when editing an existing customer -->
+    <div class="modal-tab-bar" id="modal-tabs" style="display:none;">
+      <button type="button" class="modal-tab-btn active" data-tab="customer" onclick="showModalTab('customer')">Customer Info</button>
+      <button type="button" class="modal-tab-btn" data-tab="locations" onclick="showModalTab('locations')">Locations</button>
+    </div>
+
     <div class="modal-body">
       <div id="modal-error" style="display:none; background:#fee2e2; color:#b91c1c; padding:10px 14px; border-radius:8px; margin-bottom:16px; font-size:13px;"></div>
-      <div class="form-grid" style="grid-template-columns:1fr 1fr;">
-        <div class="form-group span-2">
-          <label>Business Name <span style="color:var(--danger)">*</span></label>
-          <input type="text" id="m-business-name" placeholder="e.g. Riverside Auto Wash">
+
+      <!-- ── Customer Info tab ── -->
+      <div id="modal-tab-customer">
+        <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+          <div class="form-group span-2">
+            <label>Business Name <span style="color:var(--danger)">*</span></label>
+            <input type="text" id="m-business-name" placeholder="e.g. Riverside Auto Wash">
+          </div>
+          <div class="form-group">
+            <label>Contact Name</label>
+            <input type="text" id="m-contact-name" placeholder="John Smith">
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="tel" id="m-phone" placeholder="(904) 555-0100">
+          </div>
+          <div class="form-group span-2">
+            <label>Email</label>
+            <input type="email" id="m-email" placeholder="contact@business.com">
+          </div>
+          <div class="form-group span-2">
+            <label>Website</label>
+            <input type="text" id="m-website" placeholder="www.business.com">
+          </div>
+          <div class="form-group span-2">
+            <label>Billing / Mailing Address</label>
+            <input type="text" id="m-address" placeholder="123 Main St">
+          </div>
+          <div class="form-group">
+            <label>City</label>
+            <input type="text" id="m-city" placeholder="Jacksonville">
+          </div>
+          <div class="form-group">
+            <label>Zip Code</label>
+            <input type="text" id="m-zip" placeholder="32204">
+          </div>
+          <div class="form-group">
+            <label>State</label>
+            <select id="m-state" onchange="updateModalCounties(this.value)">
+              {% for code, name in US_STATES %}
+              <option value="{{ code }}" {% if code == 'FL' %}selected{% endif %}>{{ name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>County</label>
+            <select id="m-county">
+              <option value="">— Select county —</option>
+              {% for county in FL_COUNTIES %}
+              <option value="{{ county }}">{{ county }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group span-2">
+            <label>Notes</label>
+            <textarea id="m-notes" placeholder="Any additional notes…"></textarea>
+          </div>
         </div>
-        <div class="form-group">
-          <label>Contact Name</label>
-          <input type="text" id="m-contact-name" placeholder="John Smith">
-        </div>
-        <div class="form-group">
-          <label>Phone</label>
-          <input type="tel" id="m-phone" placeholder="(904) 555-0100">
-        </div>
-        <div class="form-group span-2">
-          <label>Email</label>
-          <input type="email" id="m-email" placeholder="contact@business.com">
-        </div>
-        <div class="form-group span-2">
-          <label>Website</label>
-          <input type="text" id="m-website" placeholder="www.business.com">
-        </div>
-        <div class="form-group span-2">
-          <label>Billing / Mailing Address</label>
-          <input type="text" id="m-address" placeholder="123 Main St">
-        </div>
-        <div class="form-group">
-          <label>City</label>
-          <input type="text" id="m-city" placeholder="Jacksonville">
-        </div>
-        <div class="form-group">
-          <label>Zip Code</label>
-          <input type="text" id="m-zip" placeholder="32204">
-        </div>
-        <div class="form-group">
-          <label>State</label>
-          <select id="m-state" onchange="updateModalCounties(this.value)">
-            {% for code, name in US_STATES %}
-            <option value="{{ code }}" {% if code == 'FL' %}selected{% endif %}>{{ name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="form-group">
-          <label>County</label>
-          <select id="m-county">
-            <option value="">— Select county —</option>
-            {% for county in FL_COUNTIES %}
-            <option value="{{ county }}">{{ county }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="form-group span-2">
-          <label>Notes</label>
-          <textarea id="m-notes" placeholder="Any additional notes…"></textarea>
+      </div>
+
+      <!-- ── Locations tab ── -->
+      <div id="modal-tab-locations" style="display:none;">
+
+        <!-- Existing locations list -->
+        <div id="loc-list" style="margin-bottom:4px;"></div>
+
+        <!-- Add / Edit location form -->
+        <div style="border-top:1px solid var(--border); padding-top:16px; margin-top:8px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+            <h4 id="loc-form-title" style="margin:0; font-size:14px; font-weight:600;">Add Location</h4>
+            <button type="button" class="btn btn-outline btn-sm" id="loc-clear-btn" onclick="clearLocForm()" style="display:none;">✕ Cancel Edit</button>
+          </div>
+          <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+            <div class="form-group span-2">
+              <label>Location Label</label>
+              <input type="text" id="lf-label" placeholder="e.g. Main Office, Building A, Warehouse">
+            </div>
+            <div class="form-group span-2">
+              <label>Street Address</label>
+              <input type="text" id="lf-address" placeholder="123 Main St">
+            </div>
+            <div class="form-group">
+              <label>City</label>
+              <input type="text" id="lf-city" placeholder="Jacksonville">
+            </div>
+            <div class="form-group">
+              <label>Zip Code</label>
+              <input type="text" id="lf-zip" placeholder="32204">
+            </div>
+            <div class="form-group">
+              <label>State</label>
+              <select id="lf-state" onchange="updateLocFormCounties(this.value)">
+                {% for code, name in US_STATES %}
+                <option value="{{ code }}" {% if code == 'FL' %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>County</label>
+              <select id="lf-county">
+                <option value="">— Select county —</option>
+                {% for county in FL_COUNTIES %}
+                <option value="{{ county }}">{{ county }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div id="loc-form-error" style="display:none; background:#fee2e2; color:#b91c1c; padding:8px 12px; border-radius:6px; font-size:13px; margin-top:8px;"></div>
+          <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:10px;">
+            <button type="button" class="btn btn-primary btn-sm" onclick="saveLocation()">Save Location</button>
+          </div>
         </div>
       </div>
     </div>
-    <div class="modal-footer">
+
+    <!-- Footer — swaps based on active tab -->
+    <div class="modal-footer" id="modal-footer-customer">
       <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
       <button type="button" class="btn btn-primary" onclick="saveCustomer()">Save Customer</button>
+    </div>
+    <div class="modal-footer" id="modal-footer-locations" style="display:none;">
+      <button type="button" class="btn btn-outline" onclick="closeModal()">Close</button>
     </div>
   </div>
 </div>
@@ -534,6 +604,18 @@
   }
 
   // ── Customer modal ────────────────────────────────────────────────────────
+  let editingLocationId = null;
+
+  function showModalTab(tab) {
+    document.getElementById('modal-tab-customer').style.display   = tab === 'customer'   ? '' : 'none';
+    document.getElementById('modal-tab-locations').style.display  = tab === 'locations'  ? '' : 'none';
+    document.getElementById('modal-footer-customer').style.display = tab === 'customer'  ? '' : 'none';
+    document.getElementById('modal-footer-locations').style.display = tab === 'locations' ? '' : 'none';
+    document.querySelectorAll('.modal-tab-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.tab === tab);
+    });
+  }
+
   function openCustomerModal(mode) {
     editingCustomerId = null;
     document.getElementById('modal-error').style.display = 'none';
@@ -544,6 +626,8 @@
     document.getElementById('m-state').value = 'FL';
     updateModalCounties('FL');
     document.getElementById('m-county').value = '';
+    document.getElementById('modal-tabs').style.display = 'none';
+    showModalTab('customer');
 
     if (mode === 'edit') {
       const id = document.getElementById('customer-select').value;
@@ -564,6 +648,9 @@
         document.getElementById('m-state').value         = c.state || 'FL';
         updateModalCounties(c.state || 'FL');
         document.getElementById('m-county').value        = c.county || '';
+        document.getElementById('modal-tabs').style.display = 'flex';
+        clearLocForm();
+        renderLocList();
       }
     }
     document.getElementById('customer-modal').classList.add('open');
@@ -571,6 +658,147 @@
 
   function closeModal() {
     document.getElementById('customer-modal').classList.remove('open');
+  }
+
+  // ── Location list & form ──────────────────────────────────────────────────
+  function renderLocList() {
+    const c = CUSTOMERS.find(x => String(x.id) === String(editingCustomerId));
+    const locs = c ? (c.locations || []) : [];
+    const listEl = document.getElementById('loc-list');
+    if (!locs.length) {
+      listEl.innerHTML = '<p style="color:var(--muted); font-size:13px; margin:0 0 8px;">No locations yet — add one below.</p>';
+      return;
+    }
+    listEl.innerHTML = locs.map(l => `
+      <div class="loc-row">
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:600; font-size:13px;">${l.label}</div>
+          <div style="font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${fmtAddr(l.address, l.city, l.state, l.zip_code) || '—'}</div>
+        </div>
+        <button type="button" class="btn btn-outline btn-sm" onclick="editLocation(${l.id})">Edit</button>
+        <button type="button" class="btn btn-outline btn-sm" style="color:#dc2626; border-color:#fca5a5;" onclick="deleteLocation(${l.id})">Delete</button>
+      </div>
+    `).join('');
+  }
+
+  function editLocation(locId) {
+    const c = CUSTOMERS.find(x => String(x.id) === String(editingCustomerId));
+    const loc = c && (c.locations || []).find(l => l.id === locId);
+    if (!loc) return;
+    editingLocationId = locId;
+    document.getElementById('lf-label').value   = loc.label || '';
+    document.getElementById('lf-address').value = loc.address || '';
+    document.getElementById('lf-city').value    = loc.city || '';
+    document.getElementById('lf-zip').value     = loc.zip_code || '';
+    document.getElementById('lf-state').value   = loc.state || 'FL';
+    updateLocFormCounties(loc.state || 'FL');
+    document.getElementById('lf-county').value  = loc.county || '';
+    document.getElementById('loc-form-title').textContent = 'Edit Location';
+    document.getElementById('loc-clear-btn').style.display = '';
+    document.getElementById('loc-form-error').style.display = 'none';
+  }
+
+  function clearLocForm() {
+    editingLocationId = null;
+    ['lf-label','lf-address','lf-city','lf-zip'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('lf-state').value = 'FL';
+    updateLocFormCounties('FL');
+    document.getElementById('lf-county').value = '';
+    document.getElementById('loc-form-title').textContent = 'Add Location';
+    document.getElementById('loc-clear-btn').style.display = 'none';
+    document.getElementById('loc-form-error').style.display = 'none';
+  }
+
+  async function saveLocation() {
+    const custId = editingCustomerId;
+    if (!custId) return;
+    const payload = {
+      label:    document.getElementById('lf-label').value.trim() || 'Main',
+      address:  document.getElementById('lf-address').value.trim(),
+      city:     document.getElementById('lf-city').value.trim(),
+      state:    document.getElementById('lf-state').value,
+      county:   document.getElementById('lf-county').value,
+      zip_code: document.getElementById('lf-zip').value.trim(),
+    };
+    const url = editingLocationId
+      ? `/tech/ops/customers/${custId}/locations/${editingLocationId}/save/`
+      : `/tech/ops/customers/${custId}/locations/save/`;
+    const errEl = document.getElementById('loc-form-error');
+    errEl.style.display = 'none';
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!data.ok) { errEl.textContent = data.error || 'Save failed.'; errEl.style.display = 'block'; return; }
+
+      const loc = data.location;
+      const c = CUSTOMERS.find(x => String(x.id) === String(custId));
+      if (c) {
+        c.locations = c.locations || [];
+        const idx = c.locations.findIndex(l => l.id === loc.id);
+        if (idx >= 0) c.locations[idx] = loc; else c.locations.push(loc);
+      }
+      clearLocForm();
+      renderLocList();
+      refreshLocationPicker(custId, loc.id);
+    } catch(e) {
+      errEl.textContent = 'Network error. Please try again.';
+      errEl.style.display = 'block';
+    }
+  }
+
+  async function deleteLocation(locId) {
+    if (!confirm('Delete this location? This cannot be undone.')) return;
+    const custId = editingCustomerId;
+    try {
+      const res = await fetch(`/tech/ops/locations/${locId}/delete/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF },
+      });
+      const data = await res.json();
+      if (!data.ok) return;
+      const c = CUSTOMERS.find(x => String(x.id) === String(custId));
+      if (c) c.locations = (c.locations || []).filter(l => l.id !== locId);
+      if (editingLocationId === locId) clearLocForm();
+      renderLocList();
+      refreshLocationPicker(custId, null);
+    } catch(e) {}
+  }
+
+  function refreshLocationPicker(custId, autoSelectLocId) {
+    const c = CUSTOMERS.find(x => String(x.id) === String(custId));
+    if (!c) return;
+    const locSel = document.getElementById('location-select');
+    const primaryAddr = fmtAddr(c.address, c.city, c.state, c.zip_code);
+    locSel.innerHTML = `<option value="">Primary Address${primaryAddr ? ' — ' + primaryAddr : ''}</option>`;
+    (c.locations || []).forEach(l => {
+      const o = document.createElement('option');
+      o.value = l.id;
+      const addrStr = fmtAddr(l.address, l.city, l.state, l.zip_code);
+      o.text = l.label + (addrStr ? ' — ' + addrStr : '');
+      o.dataset.loc = JSON.stringify(l);
+      if (autoSelectLocId && l.id === autoSelectLocId) o.selected = true;
+      locSel.appendChild(o);
+    });
+    document.getElementById('location-picker-row').style.display = '';
+    if (autoSelectLocId) onLocationChange(String(autoSelectLocId));
+  }
+
+  function updateLocFormCounties(state) {
+    const sel = document.getElementById('lf-county');
+    const current = sel.value;
+    sel.innerHTML = '<option value="">— Select county —</option>';
+    if (state === 'FL') {
+      FL_COUNTIES.forEach(c => {
+        const o = document.createElement('option');
+        o.value = c; o.text = c;
+        if (c === current) o.selected = true;
+        sel.appendChild(o);
+      });
+    }
   }
 
   async function saveCustomer() {
