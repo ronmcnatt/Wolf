@@ -419,7 +419,7 @@
       (c.locations || []).forEach(l => {
         const o = document.createElement('option');
         o.value = l.id;
-        const addrStr = [l.address, l.city, l.state].filter(Boolean).join(', ');
+        const addrStr = [l.address, l.city, l.state, l.zip_code].filter(Boolean).join(', ');
         o.text = l.label + (addrStr ? ' — ' + addrStr : '');
         o.dataset.loc = JSON.stringify(l);
         locSel.appendChild(o);
@@ -464,6 +464,8 @@
       devMap.setView([dl, dlg], 19);
       document.getElementById('device_lat').value = dl;
       document.getElementById('device_lng').value = dlg;
+    } else {
+      geocodeAddress();
     }
   }
 
@@ -654,12 +656,12 @@
       if (c) {
         const locRow = document.getElementById('location-picker-row');
         const locSel = document.getElementById('location-select');
-        const primaryAddr = [c.address, c.city, c.state].filter(Boolean).join(', ');
+        const primaryAddr = [c.address, c.city, c.state, c.zip_code].filter(Boolean).join(', ');
         locSel.innerHTML = `<option value="">Primary Address${primaryAddr ? ' — ' + primaryAddr : ''}</option>`;
         (c.locations || []).forEach(l => {
           const o = document.createElement('option');
           o.value = l.id;
-          const addrStr = [l.address, l.city, l.state].filter(Boolean).join(', ');
+          const addrStr = [l.address, l.city, l.state, l.zip_code].filter(Boolean).join(', ');
           o.text = l.label + (addrStr ? ' — ' + addrStr : '');
           o.dataset.loc = JSON.stringify(l);
           if (String(l.id) === INIT_LOCATION_REF) o.selected = true;
