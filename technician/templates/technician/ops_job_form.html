@@ -84,24 +84,19 @@
             </div>
             <input type="hidden" name="location_ref" id="location-ref-input" value="{% if job.location_ref_id %}{{ job.location_ref_id }}{% endif %}">
 
+            <input type="hidden" name="customer"  id="field-customer" value="{{ job.customer|default:'' }}">
+            <input type="hidden" name="address"   id="address-input"  value="{{ job.address|default:'' }}">
+            <input type="hidden" name="city"      id="field-city"     value="{{ job.city|default:'' }}">
+            <input type="hidden" name="zip_code"  id="field-zip"      value="{{ job.zip_code|default:'' }}">
+
             <div class="form-group span-2">
-              <label>Customer / Business Name</label>
-              <input type="text" name="customer" id="field-customer" value="{{ job.customer|default:'' }}" required placeholder="e.g. Riverside Auto Wash">
-            </div>
-            <div class="form-group span-2">
-              <label>Street Address</label>
-              <div style="display:flex; gap:8px;">
-                <input type="text" name="address" id="address-input" value="{{ job.address|default:'' }}" required placeholder="123 Main St" style="flex:1;">
+              <label>Service Address</label>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <div id="address-display" style="flex:1; padding:9px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; font-size:14px; color:#475569; min-height:38px; line-height:1.4;">{% spaceless %}
+                  {% if job.address %}{{ job.address }}{% if job.city %}, {{ job.city }}{% endif %}{% if job.state %}, {{ job.state }}{% endif %}{% if job.zip_code %} {{ job.zip_code }}{% endif %}{% else %}<span style="color:#94a3b8;">Select a customer and location above</span>{% endif %}
+                {% endspaceless %}</div>
                 <button type="button" class="btn btn-outline btn-sm" onclick="geocodeAddress()">📍 Locate</button>
               </div>
-            </div>
-            <div class="form-group">
-              <label>City</label>
-              <input type="text" name="city" id="field-city" value="{{ job.city|default:'' }}" placeholder="Jacksonville">
-            </div>
-            <div class="form-group">
-              <label>Zip Code</label>
-              <input type="text" name="zip_code" id="field-zip" value="{{ job.zip_code|default:'' }}" placeholder="32204">
             </div>
             <div class="form-group">
               <label>Contact Name</label>
@@ -451,6 +446,7 @@
     document.getElementById('address-input').value = loc.address || '';
     document.getElementById('field-city').value    = loc.city || '';
     document.getElementById('field-zip').value     = loc.zip_code || '';
+    updateAddressDisplay(loc.address, loc.city, loc.state, loc.zip_code);
     const stateSel = document.getElementById('state-select');
     stateSel.value = loc.state || 'FL';
     updateCounties(stateSel.value);
@@ -478,6 +474,7 @@
     document.getElementById('address-input').value  = c.address || '';
     document.getElementById('field-city').value     = c.city || '';
     document.getElementById('field-zip').value      = c.zip_code || '';
+    updateAddressDisplay(c.address, c.city, c.state, c.zip_code);
 
     // Sync state/county dropdowns
     const stateSel = document.getElementById('state-select');
@@ -513,6 +510,14 @@
     document.getElementById('address-input').value  = '';
     document.getElementById('field-city').value     = '';
     document.getElementById('field-zip').value      = '';
+    document.getElementById('address-display').innerHTML = '<span style="color:#94a3b8;">Select a customer and location above</span>';
+  }
+
+  function updateAddressDisplay(street, city, state, zip) {
+    const parts = [street, city, state, zip].filter(Boolean);
+    const el = document.getElementById('address-display');
+    el.textContent = parts.length ? parts.join(', ') : '';
+    if (!parts.length) el.innerHTML = '<span style="color:#94a3b8;">Select a customer and location above</span>';
   }
 
   // ── Customer modal ────────────────────────────────────────────────────────
