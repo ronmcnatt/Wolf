@@ -24,7 +24,7 @@
   <div class="tech-page-header">
     <div>
       <h1>{{ job.customer }}</h1>
-      <p>{{ job.time }} &nbsp;·&nbsp; {{ job.address }}</p>
+      <p>{{ job.time }} &nbsp;·&nbsp; {{ job.address }}{% if job.city %}, {{ job.city }}{% endif %}{% if job.state %}, {{ job.state }}{% endif %}{% if job.zip_code %} {{ job.zip_code }}{% endif %}</p>
     </div>
     <span class="badge badge-{{ job.status }}" style="font-size:13px; padding:8px 16px;">
       {% if job.status == 'completed' %}✓ Completed
@@ -51,7 +51,7 @@
         </div>
         <div class="info-row">
           <span class="label">Address</span>
-          <span class="value">{{ job.address }}</span>
+          <span class="value">{{ job.address }}{% if job.city %}, {{ job.city }}{% endif %}{% if job.state %}, {{ job.state }}{% endif %}{% if job.zip_code %} {{ job.zip_code }}{% endif %}</span>
         </div>
         <div class="info-row">
           <span class="label">Scheduled</span>
@@ -337,7 +337,7 @@
   }).addTo(propMap);
   L.marker([{{ job.lat }}, {{ job.lng }}])
     .addTo(propMap)
-    .bindPopup('<strong>{{ job.customer }}</strong><br>{{ job.address }}')
+    .bindPopup('<strong>{{ job.customer }}</strong><br>{{ job.address }}{% if job.city %}, {{ job.city }}{% endif %}{% if job.state %}, {{ job.state }}{% endif %}{% if job.zip_code %} {{ job.zip_code }}{% endif %}')
     .openPopup();
 
   // Device location map (zoomed in tighter)

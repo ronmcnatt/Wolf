@@ -218,7 +218,7 @@
                 {% if job.county %}<div style="font-size:11px;color:var(--muted);">{{ job.county }} Co.</div>{% endif %}
               </td>
               <td class="td-address">
-                {{ job.address }}
+                {{ job.address }}{% if job.city %}, {{ job.city }}{% endif %}{% if job.state %}, {{ job.state }}{% endif %}{% if job.zip_code %} {{ job.zip_code }}{% endif %}
                 {% if job.lat and job.lng %}
                   <div style="font-size:11px;color:var(--muted);margin-top:2px;">{{ job.lat }}, {{ job.lng }}</div>
                 {% elif job.customer_ref.lat and job.customer_ref.lng %}

@@ -54,7 +54,7 @@
       </div>
       <div class="job-info">
         <div class="customer">{{ job.customer }}</div>
-        <div class="address">{{ job.address }}</div>
+        <div class="address">{{ job.address }}{% if job.city %}, {{ job.city }}{% endif %}{% if job.state %}, {{ job.state }}{% endif %}{% if job.zip_code %} {{ job.zip_code }}{% endif %}</div>
       </div>
       <div class="job-meta">
         <span class="badge badge-device">{{ job.device_type }}{% if job.device_size %} · {{ job.device_size }}{% endif %}</span>
