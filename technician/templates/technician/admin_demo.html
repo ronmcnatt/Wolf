@@ -117,8 +117,17 @@
     fetch('{% url "admin_demo_reload" %}', {
       method: 'POST',
       headers: {'X-CSRFToken': '{{ csrf_token }}'},
+      credentials: 'same-origin',
     })
-    .then(r => r.json())
+    .then(function(r) {
+      const ct = r.headers.get('content-type') || '';
+      if (!ct.includes('application/json')) {
+        return r.text().then(function(t) {
+          throw new Error('Server returned ' + r.status + ' (' + ct + '): ' + t.slice(0, 200));
+        });
+      }
+      return r.json();
+    })
     .then(data => {
       if (data.ok) {
         showStatus('cust-status', true,
