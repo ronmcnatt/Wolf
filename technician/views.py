@@ -1803,11 +1803,16 @@ def admin_demo(request):
 def _reprovision_demo_accounts():
     """Find-or-create portal User accounts for all demo customers and reset passwords.
 
-    Called after a customer SQL reload where linked_user_id is NULL on re-inserted rows.
+    Batched to minimise DB round-trips (critical on Supabase where each query
+    costs ~50-100 ms; the old per-customer loop hit ~270 queries and timed out).
     Returns (provisioned_count, errors).
     """
     import re as _re
+    from django.contrib.auth.hashers import make_password
 
+    customers = list(Customer.objects.filter(demo=True).order_by('id'))
+
+    # --- 1. Compute target email for every customer (in-memory, no DB) ----------
     used_emails = set()
 
     def _gen_email(customer):
@@ -1819,44 +1824,110 @@ def _reprovision_demo_accounts():
             base = _re.sub(r'[^a-z0-9]', '', ''.join(parts))[:20] or f'cust{customer.pk}'
         slug = base
         n = 2
-        while (f'{slug}@wolfbackflow.demo' in used_emails
-               or User.objects.filter(username=f'{slug}@wolfbackflow.demo').exists()):
+        while f'{slug}@wolfbackflow.demo' in used_emails:
             slug = f'{base}{n}'
             n += 1
         email = f'{slug}@wolfbackflow.demo'
         used_emails.add(email)
         return email
 
-    provisioned, errors = 0, []
-    for customer in Customer.objects.filter(demo=True).order_by('id'):
-        try:
-            email = (customer.email or '').strip() or _gen_email(customer)
-            if not customer.email:
-                customer.email = email
+    email_map   = {}   # customer.pk -> target email
+    password_map = {}  # customer.pk -> raw password
+    for c in customers:
+        email = (c.email or '').strip() or _gen_email(c)
+        email_map[c.pk]    = email
+        password_map[c.pk] = c.portal_password or 'test123'
+        if not c.email:
+            c.email = email
+        if not c.portal_password:
+            c.portal_password = password_map[c.pk]
 
-            password = customer.portal_password or 'test123'
-            if not customer.portal_password:
-                customer.portal_password = password
+    all_emails = list(email_map.values())
 
-            user = User.objects.filter(username=email).first()
-            if user:
-                user.set_password(password)
-                user.save(update_fields=['password'])
-            else:
-                parts = (customer.contact_name or '').split(None, 1)
-                user = User.objects.create_user(
-                    username=email,
-                    email=email,
-                    password=password,
-                    first_name=parts[0] if parts else '',
-                    last_name=parts[1] if len(parts) > 1 else '',
+    # Pre-hash each unique raw password once — PBKDF2 is slow (~0.8 s/hash),
+    # so hashing 54 identical passwords individually would take ~43 s total.
+    unique_raw = set(password_map.values())
+    hashed_cache = {raw: make_password(raw) for raw in unique_raw}
+
+    def _hashed(pk):
+        return hashed_cache[password_map[pk]]
+
+    # --- 2. Bulk-fetch existing users (1 query) ----------------------------------
+    existing_users = {u.username: u for u in User.objects.filter(username__in=all_emails)}
+
+    # --- 3. Bulk-update passwords for existing users (1 query) ------------------
+    to_update = []
+    for c in customers:
+        u = existing_users.get(email_map[c.pk])
+        if u:
+            u.password = _hashed(c.pk)
+            to_update.append(u)
+    if to_update:
+        User.objects.bulk_update(to_update, ['password'])
+
+    # --- 4. Bulk-create missing users (1 query) ----------------------------------
+    new_user_objs = []
+    for c in customers:
+        email = email_map[c.pk]
+        if email not in existing_users:
+            name_parts = (c.contact_name or '').split(None, 1)
+            new_user_objs.append(User(
+                username=email,
+                email=email,
+                password=_hashed(c.pk),
+                first_name=name_parts[0] if name_parts else '',
+                last_name=name_parts[1] if len(name_parts) > 1 else '',
+            ))
+    if new_user_objs:
+        User.objects.bulk_create(new_user_objs, ignore_conflicts=True)
+
+    # --- 5. Re-fetch all users including newly created (1 query) ----------------
+    all_users = {u.username: u for u in User.objects.filter(username__in=all_emails)}
+
+    # --- 6. Bulk-create missing UserProfiles (1 query) --------------------------
+    existing_profile_ids = set(
+        UserProfile.objects.filter(user__in=all_users.values())
+        .values_list('user_id', flat=True)
+    )
+    new_profiles = [
+        UserProfile(user=u, role='customer')
+        for u in all_users.values()
+        if u.pk not in existing_profile_ids
+    ]
+    if new_profiles:
+        UserProfile.objects.bulk_create(new_profiles, ignore_conflicts=True)
+
+    # --- 7. Bulk-update customers with linked_user (1 query) --------------------
+    errors = []
+    provisioned = 0
+    for c in customers:
+        u = all_users.get(email_map[c.pk])
+        if u:
+            c.linked_user = u
+        else:
+            errors.append(f'{c.business_name}: user not found after creation')
+
+    try:
+        Customer.objects.bulk_update(
+            [c for c in customers if c.linked_user_id],
+            ['linked_user', 'email', 'portal_password'],
+        )
+        provisioned = sum(1 for c in customers if c.linked_user_id)
+    except Exception as e:
+        # Fall back to row-by-row so one conflict doesn't block all
+        for c in customers:
+            if not c.linked_user_id:
+                continue
+            try:
+                Customer.objects.filter(pk=c.pk).update(
+                    linked_user=c.linked_user,
+                    email=c.email,
+                    portal_password=c.portal_password,
                 )
-            UserProfile.objects.get_or_create(user=user, defaults={'role': 'customer'})
-            customer.linked_user = user
-            customer.save(update_fields=['linked_user', 'email', 'portal_password'])
-            provisioned += 1
-        except Exception as e:
-            errors.append(f'{customer.business_name}: {e}')
+                provisioned += 1
+            except Exception as row_err:
+                errors.append(f'{c.business_name}: {row_err}')
+
     return provisioned, errors
 
 
